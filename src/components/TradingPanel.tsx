@@ -46,29 +46,10 @@ export function TradingPanel({ token }: TradingPanelProps) {
       if (confirmation.value.err) {
         throw new Error("Trade failed");
       }
-      toast.success(`Trade successful! TX: ${signature.slice(0, 8)}...`, { id: toastId });
+      toast.success(`Trade successful! TX: ${signature.slice(0, 8)}...`, { id: toastId }); 
 
-      // Retry refreshing balance 3 times with 1 second delay
-      let retryCount = 0;
-      const maxRetries = 3;
-
-      const retryRefreshBalance = async () => {
-        retryCount++;
-        try {
-          await refreshBalance();
-          toast.success("Balance updated!", { duration: 2000 });
-        } catch (error) {
-          if (retryCount < maxRetries) {
-            setTimeout(retryRefreshBalance, 1000);
-          } else {
-            console.error("Failed to refresh balance after 3 attempts:", error);
-            toast.error("Failed to refresh balance. Please refresh manually.");
-          }
-        }
-      };
-
-      // Start the first attempt after 1 second
-      setTimeout(retryRefreshBalance, 1000);
+      // Refresh balance after 1 second
+      setTimeout(refreshBalance, 1000);
     } catch (error) {
       toast.error((error as Error).message, { id: toastId });
     }
