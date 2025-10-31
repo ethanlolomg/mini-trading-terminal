@@ -64,7 +64,18 @@ export function TradingPanel({ token }: TradingPanelProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Trade {tokenSymbol || "Token"}</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>Trade {tokenSymbol || "Token"}</CardTitle>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(keypair.publicKey.toBase58());
+              toast.success("Wallet address copied!");
+            }}
+            className="text-xs text-muted-foreground font-mono hover:text-foreground transition-colors cursor-pointer"
+          >
+            {keypair.publicKey.toBase58().slice(0, 4)}...{keypair.publicKey.toBase58().slice(-4)}
+          </button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex justify-between p-3 bg-muted/30 rounded-lg">
