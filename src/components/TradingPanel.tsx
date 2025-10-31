@@ -48,6 +48,7 @@ export function TradingPanel({ token }: TradingPanelProps) {
     }
   };
 
+  const solBuyAmountPresets = [0.001, 0.005, 0.01, 0.05];
   const percentagePresets = [25, 50, 75, 100];
 
   if (!privateKey) {
@@ -124,6 +125,22 @@ export function TradingPanel({ token }: TradingPanelProps) {
             {tradeMode === "buy" ? (
               <div className="space-y-2">
                 <label className="text-sm text-muted-foreground">Amount in SOL</label>
+                <div className="flex gap-2">
+                  {solBuyAmountPresets.map((preset) => (
+                    <button
+                      key={preset}
+                      onClick={() => setBuyAmount(preset.toString())}
+                      className={cn(
+                        "flex-1 py-1.5 px-2 rounded-md text-sm font-medium transition-all",
+                        buyAmount === preset.toString()
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                      )}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
                 <Input
                   type="number"
                   placeholder="0.00"
