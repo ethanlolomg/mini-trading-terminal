@@ -2,6 +2,7 @@ import { Codex } from "@codex-data/sdk";
 import { Link, useParams } from "react-router-dom";
 import { useEffect, useState, Suspense } from "react";
 import { TokenChart, ChartDataPoint } from "@/components/TokenChart";
+import { TradingPanel } from "@/components/TradingPanel";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -193,6 +194,12 @@ export default function TokenPage() {
         </div>
 
         <div className="lg:col-span-1 space-y-6">
+          <TradingPanel
+            tokenSymbol={details?.symbol || undefined}
+            tokenName={details?.name || undefined}
+            tokenAddress={details?.address}
+          />
+
           <Card>
             <CardHeader className="flex flex-row items-center space-x-4">
               {details?.info?.imageThumbUrl ? (
