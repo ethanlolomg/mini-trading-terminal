@@ -68,7 +68,7 @@ export const useBalance = (tokenAddress: string, tokenDecimals: number, nativeDe
       console.error("Error fetching balances:", error);
       setLoading(false);
     }
-  }, [tokenAddress, networkId]);
+  }, [tokenAddress, networkId, codexClient]);
 
   useEffect(() => {
     refreshBalance();
