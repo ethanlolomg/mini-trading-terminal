@@ -81,7 +81,7 @@ export default function TokenPage() {
         if (eventsResult.status === 'fulfilled' && eventsResult.value.getTokenEvents?.items) {
           const tokenEvents = eventsResult.value.getTokenEvents.items
             .filter(ev => ev != null)
-            .map((ev) => {
+            .map((ev, index) => {
               const decimals = details?.decimals ?? 18;
               const swapValue = parseFloat(ev.token0SwapValueUsd || '0');
               const amount0 = parseFloat(ev.data?.amount0 || '0');
@@ -90,7 +90,7 @@ export default function TokenPage() {
               return {
                 id: ev.id,
                 timestamp: ev.timestamp,
-                uniqueId: `${ev.id}-${ev.blockNumber}-${ev.transactionIndex}-${ev.logIndex}`,
+                uniqueId: `${ev.id}-${ev.blockNumber || 0}-${ev.transactionIndex || 0}-${ev.logIndex || 0}-${index}`,
                 transactionHash: ev.transactionHash,
                 eventDisplayType: ev.eventDisplayType,
                 amountUsd: calculatedAmountUsd,

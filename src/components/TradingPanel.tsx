@@ -47,10 +47,9 @@ export function TradingPanel({ token }: TradingPanelProps) {
         throw new Error("Trade failed");
       }
       toast.success(`Trade successful! TX: ${signature.slice(0, 8)}...`, { id: toastId });
+      refreshBalance();
     } catch (error) {
       toast.error((error as Error).message, { id: toastId });
-    } finally {
-      refreshBalance();
     }
   }, [tradeMode, buyAmount, sellPercentage, createTransaction, keypair, connection, refreshBalance]);
 

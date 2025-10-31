@@ -21,8 +21,6 @@ export const useTrade = (
         atomicAmount = tokenAtomicBalance.mul(value).div(100);
       }
 
-      console.log("atomicAmount", atomicAmount.toString());
-
       // Get order from Jupiter
       const data = await Jupiter.getOrder({
         inputMint:
