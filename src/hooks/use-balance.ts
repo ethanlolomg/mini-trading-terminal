@@ -42,11 +42,11 @@ export const useBalance = (tokenAddress: string, tokenDecimals: number, nativeDe
       );
 
       if (nativeBalance) {
-        setNativeBalance(nativeBalance.shiftedBalance);
-        setNativeAtomicBalance(new Decimal(nativeBalance.balance).div(10 ** nativeDecimals));
+        setNativeAtomicBalance(new Decimal(nativeBalance.balance));
+        setNativeBalance(nativeAtomicBalance.div(10 ** nativeDecimals).toNumber());
       } else {
-        setNativeBalance(0);
         setNativeAtomicBalance(new Decimal(0));
+        setNativeBalance(0);
       }
 
       // Process token balance
@@ -56,11 +56,11 @@ export const useBalance = (tokenAddress: string, tokenDecimals: number, nativeDe
       );
 
       if (tokenBalanceItem) {
-        setTokenBalance(tokenBalanceItem.shiftedBalance);
-        setTokenAtomicBalance(new Decimal(tokenBalanceItem.balance).div(10 ** tokenDecimals));
+        setTokenAtomicBalance(new Decimal(tokenBalanceItem.balance));
+        setTokenBalance(new Decimal(tokenBalanceItem.balance).div(10 ** tokenDecimals).toNumber());
       } else {
-        setTokenBalance(0);
         setTokenAtomicBalance(new Decimal(0));
+        setTokenBalance(0);
       }
 
       setLoading(false);
@@ -68,7 +68,7 @@ export const useBalance = (tokenAddress: string, tokenDecimals: number, nativeDe
       console.error("Error fetching balances:", error);
       setLoading(false);
     }
-  }, [tokenAddress, networkId, codexClient]);
+  }, [tokenAddress, networkId, codexClient, nativeDecimals, tokenDecimals]);
 
   useEffect(() => {
     refreshBalance();

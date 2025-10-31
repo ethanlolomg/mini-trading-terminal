@@ -28,12 +28,14 @@ export function TradingPanel({ token }: TradingPanelProps) {
     const toastId = toast.loading("Submitting trade request...");
     try {
       const transaction =
-        tradeMode === "buy" ?
-          await createTransaction({ direction: tradeMode, value: parseFloat(buyAmount), signer: keypair.publicKey }) :
-          await createTransaction({ direction: tradeMode, value: parseFloat(sellPercentage), signer: keypair.publicKey });
+        await createTransaction({ 
+          direction: tradeMode, 
+          value: tradeMode === "buy" ? parseFloat(buyAmount) : parseFloat(sellPercentage), 
+          signer: keypair.publicKey 
+        });
 
       toast.loading("Signing transaction...", { id: toastId });
-      const signedTransaction = await signTransaction(keypair, transaction);
+      const signedTransaction = signTransaction(keypair, transaction);
 
       toast.loading("Sending transaction...", { id: toastId });
       const signature = await sendTransaction(signedTransaction, connection);
@@ -50,7 +52,7 @@ export function TradingPanel({ token }: TradingPanelProps) {
     } finally {
       refreshBalance();
     }
-  }, [tradeMode, buyAmount, createTransaction, keypair, connection, refreshBalance]);
+  }, [tradeMode, buyAmount, sellPercentage, createTransaction, keypair, connection, refreshBalance]);
 
   const solBuyAmountPresets = [0.0001, 0.001, 0.01, 0.1];
   const percentagePresets = [25, 50, 75, 100];
