@@ -77,7 +77,7 @@ export default function HomePage() {
       <div className="w-full max-w-md mx-auto">
         <h1 className="text-4xl font-bold mb-4 text-center">Tokedex</h1>
         <p className="text-lg text-center mb-8">
-          Welcome to Tokedex! Your terminal-inspired crypto token screener.
+          Welcome to Tokedex! Your mini trading terminal.
           <br />
           Discover, analyze, and track tokens across various networks.
         </p>
