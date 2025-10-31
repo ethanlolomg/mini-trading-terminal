@@ -41,7 +41,7 @@ export function TradingPanel({ token }: TradingPanelProps) {
     }
   }, [tradeMode, buyAmount, createTransaction, keypair, connection, refreshBalance]);
 
-  const solBuyAmountPresets = [0.001, 0.005, 0.01, 0.05];
+  const solBuyAmountPresets = [0.0001, 0.001, 0.01, 0.1];
   const percentagePresets = [25, 50, 75, 100];
 
   if (!import.meta.env.VITE_SOLANA_PRIVATE_KEY || !import.meta.env.VITE_HELIUS_RPC_URL) {
