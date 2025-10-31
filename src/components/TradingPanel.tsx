@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -33,9 +34,10 @@ export function TradingPanel({ token }: TradingPanelProps) {
       const response = await sendTransaction(signedTransaction, connection);
       if (response.value.err !== null || response.value.err !== undefined) {
         throw new Error("Trade failed");
-      }
+      } 
+      toast.success("Trade successful");
     } catch (error) {
-      
+      toast.error((error as Error).message);
     } finally {
       refreshBalance();
     }
@@ -44,7 +46,7 @@ export function TradingPanel({ token }: TradingPanelProps) {
   const solBuyAmountPresets = [0.0001, 0.001, 0.01, 0.1];
   const percentagePresets = [25, 50, 75, 100];
 
-  if (!import.meta.env.VITE_SOLANA_PRIVATE_KEY || !import.meta.env.VITE_HELIUS_RPC_URL) {
+  if (!import.meta.env.VITE_SOLANA_PRIVATE_KEY || !import.meta.env.VITE_HELIUS_RPC_URL || !import.meta.env.VITE_JUPITER_REFERRAL_ACCOUNT) {
     return (
       <Card>
         <CardHeader>
@@ -52,21 +54,8 @@ export function TradingPanel({ token }: TradingPanelProps) {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Trading requires VITE_SOLANA_PRIVATE_KEY and VITE_HELIUS_RPC_URL to be configured in environment variables.
+            Trading requires VITE_SOLANA_PRIVATE_KEY, VITE_HELIUS_RPC_URL and VITE_JUPITER_REFERRAL_ACCOUNT to be configured in environment variables.
           </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Trade {tokenSymbol || "Token"}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">Loading wallet balance...</p>
         </CardContent>
       </Card>
     );
@@ -184,7 +173,7 @@ export function TradingPanel({ token }: TradingPanelProps) {
 
             <button
               onClick={handleTrade}
-              disabled={
+              disabled={loading ||
                 (tradeMode === "buy" && (!buyAmount || parseFloat(buyAmount) <= 0)) ||
                 (tradeMode === "sell" && (!sellPercentage || parseFloat(sellPercentage) <= 0))
               }
