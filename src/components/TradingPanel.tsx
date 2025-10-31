@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { EnhancedToken } from "@codex-data/sdk/dist/sdk/generated/graphql";
-import { createConnection, fetchSolanaBalance } from "@/lib/solana";
-import { Keypair, PublicKey } from "@solana/web3.js";
+import { useBalance } from "@/hooks/use-balance";
 
 interface TradingPanelProps {
   token: EnhancedToken
@@ -15,51 +14,8 @@ export function TradingPanel({ token }: TradingPanelProps) {
   const [tradeMode, setTradeMode] = useState<"buy" | "sell">("buy");
   const [buyAmount, setBuyAmount] = useState("");
   const [sellPercentage, setSellPercentage] = useState("");
-  const [balance, setBalance] = useState<number>(0);
-  const [tokenBalance, setTokenBalance] = useState<number>(0);
-  const [loading, setLoading] = useState<boolean>(true);
-
-  const privateKey = import.meta.env.VITE_SOLANA_PRIVATE_KEY;
-
-  useEffect(() => {
-    if (privateKey) {
-      fetchBalance();
-    } else {
-      setLoading(false);
-    }
-  }, [privateKey]);
-
-  const fetchBalance = async () => {
-    try {
-      setLoading(true);
-
-      // Create keypair from private key
-      const privateKeyBytes = Uint8Array.from(
-        Buffer.from(privateKey, 'hex')
-      );
-      const keypair = Keypair.fromSecretKey(privateKeyBytes);
-      const publicKey = keypair.publicKey;
-
-      // Create connection
-      const connection = createConnection();
-
-      // Fetch SOL balance
-      const solBalance = await fetchSolanaBalance(publicKey.toBase58(), connection);
-      setBalance(solBalance / 1e9); // Convert lamports to SOL
-
-      // For SPL token balance, we need to get the associated token account
-      // This requires @solana/spl-token package which needs to be installed
-      // For now, we'll set a placeholder
-      setTokenBalance(0);
-
-    } catch (error) {
-      console.error("Error fetching balance:", error);
-      setBalance(0);
-      setTokenBalance(0);
-    } finally {
-      setLoading(false);
-    }
-  };
+  
+  const { solanaBalance, tokenBalance, loading, refreshBalance } = useBalance(token.address, Number(token.decimals));
 
   const handleTrade = () => {
     if (tradeMode === "buy") {
@@ -72,7 +28,7 @@ export function TradingPanel({ token }: TradingPanelProps) {
   const solBuyAmountPresets = [0.001, 0.005, 0.01, 0.05];
   const percentagePresets = [25, 50, 75, 100];
 
-  if (!privateKey) {
+  if (!import.meta.env.VITE_SOLANA_PRIVATE_KEY) {
     return (
       <Card>
         <CardHeader>
@@ -108,7 +64,7 @@ export function TradingPanel({ token }: TradingPanelProps) {
       <CardContent className="space-y-4">
             <div className="flex justify-between p-3 bg-muted/30 rounded-lg">
               <span className="text-sm text-muted-foreground">SOL Balance:</span>
-              <span className="font-semibold">{balance.toFixed(4)} SOL</span>
+              <span className="font-semibold">{solanaBalance.toFixed(4)} SOL</span>
             </div>
 
             {tokenSymbol && (
@@ -171,7 +127,7 @@ export function TradingPanel({ token }: TradingPanelProps) {
                   step="0.01"
                 />
                 <div className="text-xs text-muted-foreground">
-                  Available: {balance.toFixed(4)} SOL
+                  Available: {solanaBalance.toFixed(4)} SOL
                 </div>
               </div>
             ) : (
