@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createKeypair } from "@/lib/solana";
 import { getCodexClient } from "@/lib/codex";
 import Decimal from "decimal.js";
+import { Codex } from "@codex-data/sdk";
 
 export const useBalance = (tokenAddress: string, tokenDecimals: number, nativeDecimals: number, networkId: number) => {
   const [nativeBalance, setNativeBalance] = useState<number>(0);
@@ -9,6 +10,12 @@ export const useBalance = (tokenAddress: string, tokenDecimals: number, nativeDe
   const [tokenBalance, setTokenBalance] = useState<number>(0);
   const [tokenAtomicBalance, setTokenAtomicBalance] = useState<Decimal>(new Decimal(0));
   const [loading, setLoading] = useState<boolean>(true);
+  const [ codexClient, setCodexClient ] = useState<Codex | null>(null);
+
+  useEffect(() => {
+    const sdk = getCodexClient();
+    setCodexClient(sdk);
+  }, []);
 
   const refreshBalance = useCallback(async () => {
     try {
@@ -16,8 +23,7 @@ export const useBalance = (tokenAddress: string, tokenDecimals: number, nativeDe
       const walletAddress = keypair.publicKey.toBase58();
       setLoading(true);
 
-      const sdk = getCodexClient();
-      const balanceResponse = await sdk.queries.balances({
+      const balanceResponse = await codexClient?.queries.balances({
         input: {
           networks: [networkId],
           walletAddress: walletAddress,
@@ -27,7 +33,7 @@ export const useBalance = (tokenAddress: string, tokenDecimals: number, nativeDe
 
       // Process native balance (SOL)
       const nativeTokenId = `native:${networkId}`;
-      const nativeBalance = balanceResponse.balances.items.find(
+      const nativeBalance = balanceResponse?.balances?.items.find(
         item => item.tokenId === nativeTokenId
       );
 
@@ -41,7 +47,7 @@ export const useBalance = (tokenAddress: string, tokenDecimals: number, nativeDe
 
       // Process token balance
       const tokenTokenId = `${tokenAddress}:${networkId}`;
-      const tokenBalanceItem = balanceResponse.balances.items.find(
+      const tokenBalanceItem = balanceResponse?.balances?.items.find(
         item => item.tokenId === tokenTokenId
       );
 
