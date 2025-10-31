@@ -118,7 +118,7 @@ export default function TokenPage() {
     };
 
     fetchData();
-  }, [networkIdNum, tokenId]);
+  }, [networkIdNum, tokenId, details?.decimals]);
 
   if (loading) {
     return (

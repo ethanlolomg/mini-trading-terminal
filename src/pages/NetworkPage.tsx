@@ -1,5 +1,5 @@
 import { Codex } from "@codex-data/sdk";
-import { TokenRankingAttribute, RankingDirection } from "@codex-data/sdk/dist/sdk/generated/graphql";
+import { TokenRankingAttribute, RankingDirection, TokenFilterResult } from "@codex-data/sdk/dist/sdk/generated/graphql";
 import { Link, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 
@@ -7,7 +7,7 @@ export default function NetworkPage() {
   const { networkId } = useParams<{ networkId: string }>();
   const networkIdNum = parseInt(networkId || '', 10);
 
-  const [tokenListItems, setTokenListItems] = useState<any[]>([]);
+  const [tokenListItems, setTokenListItems] = useState<TokenFilterResult[]>([]);
   const [networkName, setNetworkName] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,7 +75,7 @@ export default function NetworkPage() {
     };
 
     fetchData();
-  }, [networkIdNum, networkId]);
+  }, [networkIdNum, networkId, networkName]);
 
   if (loading) {
     return (
@@ -111,31 +111,31 @@ export default function NetworkPage() {
                 </thead>
                 <tbody>
                   {tokenListItems.map((item) => (
-                    <tr key={item.token.address} className="border-b border-dashed border-border/30 hover:bg-muted/30">
+                    <tr key={item.token?.address} className="border-b border-dashed border-border/30 hover:bg-muted/30">
                       <td className="p-2 flex items-center justify-center">
-                        {item.token.info?.imageThumbUrl ? (
+                        {item.token?.info?.imageThumbUrl ? (
                           <img
-                            src={item.token.info.imageThumbUrl}
-                            alt={`${item.token.name || 'Token'} icon`}
+                            src={item.token?.info?.imageThumbUrl}
+                            alt={`${item.token?.name || 'Token'} icon`}
                             width={24}
                             height={24}
                             className="rounded-full"
                           />
                         ) : (
                           <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-semibold">
-                            {item.token.symbol ? item.token.symbol[0] : 'T'}
+                            {item.token?.symbol ? item.token.symbol[0] : 'T'}
                           </div>
                         )}
                       </td>
                       <td className="p-2 truncate">
-                        <Link to={`/networks/${networkId}/tokens/${item.token.address}`} className="block w-full h-full">
-                          {item.token.name || "Unknown Name"}
+                        <Link to={`/networks/${networkId}/tokens/${item.token?.address}`} className="block w-full h-full">
+                          {item.token?.name || "Unknown Name"}
                         </Link>
                       </td>
                       <td className="p-2 truncate">
-                         <Link to={`/networks/${networkId}/tokens/${item.token.address}`} className="block w-full h-full">
-                           {item.token.symbol || "-"}
-                         </Link>
+                         <Link to={`/networks/${networkId}/tokens/${item.token?.address}`} className="block w-full h-full">
+                           {item.token?.symbol || "-"}
+                         </Link>  
                       </td>
                     </tr>
                   ))}
