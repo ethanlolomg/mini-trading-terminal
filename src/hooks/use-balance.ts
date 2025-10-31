@@ -10,22 +10,21 @@ export const useBalance = (tokenAddress: string, tokenDecimals: number) => {
   const [tokenAtomicBalance, setTokenAtomicBalance] = useState<Decimal>(new Decimal(0));
   const [loading, setLoading] = useState<boolean>(true);
 
-  const connection = createConnection();
-  const keypair = createKeypair(import.meta.env.VITE_SOLANA_PRIVATE_KEY);
-  const publicKey = keypair.publicKey;
-
   const refreshBalance = useCallback(async () => {
+    const connection = createConnection();
+    const keypair = createKeypair(import.meta.env.VITE_SOLANA_PRIVATE_KEY);
+    const publicKey = keypair.publicKey.toBase58();
     setLoading(true);
-    const tokenBalance = await getTokenBalance(publicKey.toBase58(), tokenAddress, connection);
-    const tokenAtomicBalance = tokenBalance.div(new Decimal(10).pow(tokenDecimals));
+    const tokenAtomicBalance = await getTokenBalance(publicKey, tokenAddress, connection);
+    const tokenBalance = tokenAtomicBalance.div(new Decimal(10).pow(tokenDecimals));
     setTokenBalance(Number(tokenBalance));
     setTokenAtomicBalance(tokenAtomicBalance);
-    const solBalance = await getSolanaBalance(publicKey.toBase58(), connection);
-    const solAtomicBalance = solBalance.div(LAMPORTS_PER_SOL);
+    const solAtomicBalance = await getSolanaBalance(publicKey, connection);
+    const solBalance = solAtomicBalance.div(LAMPORTS_PER_SOL);
     setSolBalance(Number(solBalance));
     setSolanaAtomicBalance(solAtomicBalance);
     setLoading(false);
-  }, [tokenAddress, tokenDecimals, connection, publicKey]);
+  }, [tokenAddress, tokenDecimals]);
 
   useEffect(() => {
     refreshBalance();
