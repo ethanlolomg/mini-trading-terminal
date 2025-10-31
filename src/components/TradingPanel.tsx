@@ -25,7 +25,7 @@ export function TradingPanel({ token }: TradingPanelProps) {
 
   const handleTrade = useCallback(async () => {
     try {
-      const transaction = 
+      const transaction =
         tradeMode === "buy" ?
           await createTransaction({ direction: tradeMode, value: parseFloat(buyAmount), signer: keypair.publicKey }) :
           await createTransaction({ direction: tradeMode, value: parseFloat(sellPercentage), signer: keypair.publicKey });
@@ -35,7 +35,10 @@ export function TradingPanel({ token }: TradingPanelProps) {
         throw new Error("Trade failed");
       }
     } catch (error) {
-      console.error(error);
+      console.error("Trade error:", error);
+      if (error.message?.includes("Failed to deserialize Jupiter transaction")) {
+        console.error("Jupiter API returned invalid transaction data");
+      }
     } finally {
       refreshBalance();
     }

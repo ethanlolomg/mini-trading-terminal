@@ -44,7 +44,7 @@ export const useTrade = (
 
       return transaction;
     },
-    [tokenAddress],
+    [tokenAddress, tokenAtomicBalance],
   );
   
   return {
