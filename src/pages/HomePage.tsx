@@ -1,4 +1,3 @@
-import { Codex } from "@codex-data/sdk";
 import { useEffect, useState } from "react";
 import NetworkList from "@/components/NetworkList";
 import { getCodexClient } from "@/lib/codex";
