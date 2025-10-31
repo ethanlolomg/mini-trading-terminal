@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { EnhancedToken } from "@codex-data/sdk/dist/sdk/generated/graphql";
 import { useBalance } from "@/hooks/use-balance";
+import { useTrade } from "@/hooks/use-trade";
+import { createConnection, createKeypair, signTransaction } from "@/lib/solana";
 
 interface TradingPanelProps {
   token: EnhancedToken
@@ -15,15 +17,23 @@ export function TradingPanel({ token }: TradingPanelProps) {
   const [buyAmount, setBuyAmount] = useState("");
   const [sellPercentage, setSellPercentage] = useState("");
   
-  const { solanaBalance, tokenBalance, loading, refreshBalance } = useBalance(token.address, Number(token.decimals));
+  const { solanaBalance, solanaAtomicBalance, tokenBalance, tokenAtomicBalance, loading, refreshBalance } = useBalance(token.address, Number(token.decimals));
+  const { createTransaction } = useTrade(token.address);
 
-  const handleTrade = () => {
-    if (tradeMode === "buy") {
-      console.log(`Buying ${buyAmount} SOL worth of ${tokenSymbol}`);
-    } else {
-      console.log(`Selling ${sellPercentage}% of ${tokenSymbol} holdings`);
+  const keypair = createKeypair(import.meta.env.VITE_SOLANA_PRIVATE_KEY);
+  const connection = createConnection();
+
+  const handleTrade = useCallback(async () => {
+    try {
+      const transaction = await createTransaction({ direction: tradeMode, atomicAmount: buyAmount, signer: keypair.publicKey });
+      const signedTransaction = await signTransaction(keypair, transaction);
+      await sendTransaction(signedTransaction, connection);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      refreshBalance();
     }
-  };
+  }, [tradeMode, buyAmount, createTransaction, keypair, connection, refreshBalance]);
 
   const solBuyAmountPresets = [0.001, 0.005, 0.01, 0.05];
   const percentagePresets = [25, 50, 75, 100];
