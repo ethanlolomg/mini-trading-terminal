@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { EnhancedToken } from "@codex-data/sdk/dist/sdk/generated/graphql";
 import { useBalance } from "@/hooks/use-balance";
 import { useTrade } from "@/hooks/use-trade";
-import { createConnection, createKeypair, signTransaction } from "@/lib/solana";
+import { createConnection, createKeypair, sendTransaction, signTransaction } from "@/lib/solana";
 
 interface TradingPanelProps {
   token: EnhancedToken
@@ -17,17 +17,23 @@ export function TradingPanel({ token }: TradingPanelProps) {
   const [buyAmount, setBuyAmount] = useState("");
   const [sellPercentage, setSellPercentage] = useState("");
   
-  const { solanaBalance, solanaAtomicBalance, tokenBalance, tokenAtomicBalance, loading, refreshBalance } = useBalance(token.address, Number(token.decimals));
-  const { createTransaction } = useTrade(token.address);
+  const { solanaBalance, tokenBalance, loading, refreshBalance } = useBalance(token.address, Number(token.decimals));
+  const { createTransaction } = useTrade(token.address, Number(token.decimals));
 
   const keypair = createKeypair(import.meta.env.VITE_SOLANA_PRIVATE_KEY);
   const connection = createConnection();
 
   const handleTrade = useCallback(async () => {
     try {
-      const transaction = await createTransaction({ direction: tradeMode, atomicAmount: buyAmount, signer: keypair.publicKey });
+      const transaction = 
+        tradeMode === "buy" ?
+          await createTransaction({ direction: tradeMode, value: parseFloat(buyAmount), signer: keypair.publicKey }) :
+          await createTransaction({ direction: tradeMode, value: parseFloat(sellPercentage), signer: keypair.publicKey });
       const signedTransaction = await signTransaction(keypair, transaction);
-      await sendTransaction(signedTransaction, connection);
+      const response = await sendTransaction(signedTransaction, connection);
+      if (response.value.err !== null || response.value.err !== undefined) {
+        throw new Error("Trade failed");
+      }
     } catch (error) {
       console.error(error);
     } finally {

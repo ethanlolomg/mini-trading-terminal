@@ -55,18 +55,17 @@ export const getTokenBalance = async (
 export const signTransaction = async (keypair: Keypair, transaction: VersionedTransaction) => {
   transaction.sign([keypair]);
   const serializedTx = transaction.serialize();
-  return Buffer.from(serializedTx).toString("hex");
+  return VersionedTransaction.deserialize(Buffer.from(serializedTx));
 };
 
 export const sendTransaction = async (transaction: VersionedTransaction, connection: Connection) => {
   const signature = await connection.sendTransaction(transaction);
   const blockHash = await connection.getLatestBlockhash();
-  const lastValidBlockHeight = blockHash.lastValidBlockHeight;
   const response = await connection.confirmTransaction(
     {
       signature,
-      blockhash: blockHash,
-      lastValidBlockHeight,
+      blockhash: blockHash.blockhash,
+      lastValidBlockHeight: blockHash.lastValidBlockHeight,
     },
     "processed",
   );

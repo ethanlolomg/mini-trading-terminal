@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { PublicKey } from "@solana/web3.js";
+import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { NATIVE_MINT } from "@solana/spl-token";
 import Decimal from "decimal.js";
 import Jupiter from "@/lib/jupiter";
@@ -8,10 +8,18 @@ import { VersionedTransaction } from "@solana/web3.js";
 
 export const useTrade = (
   tokenAddress: string,
+  tokenDecimals: number,
 ) => {
   const createTransaction = useCallback(
-    async (params: { direction: "buy" | "sell", atomicAmount: Decimal, signer: PublicKey }) => {
-      const { direction, atomicAmount, signer } = params;
+    async (params: { direction: "buy" | "sell", value: number, signer: PublicKey }) => {
+      const { direction, value, signer } = params;
+
+      let atomicAmount;
+      if (direction === "buy") {
+        atomicAmount = new Decimal(value).mul(LAMPORTS_PER_SOL);
+      } else {
+        atomicAmount = new Decimal(value).mul(new Decimal(10).pow(Number(tokenDecimals))).div(100);
+      }
 
       // Get order from Jupiter
       const data = await Jupiter.getOrder({
