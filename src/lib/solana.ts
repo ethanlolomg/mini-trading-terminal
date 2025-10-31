@@ -3,7 +3,7 @@ import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import Decimal from "decimal.js";
 
 export const createConnection = () => {
-  return new Connection(import.meta.env.VITE_SOLANA_RPC_URL);
+  return new Connection(import.meta.env.VITE_HELIUS_RPC_URL);
 };
 
 export const createKeypair = (privateKey: string) => {
