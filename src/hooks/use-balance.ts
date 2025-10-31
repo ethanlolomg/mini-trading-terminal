@@ -19,6 +19,10 @@ export const useBalance = (tokenAddress: string, tokenDecimals: number, nativeDe
 
   const refreshBalance = useCallback(async () => {
     try {
+      if (!codexClient) {
+        return;
+      }
+
       const keypair = createKeypair(import.meta.env.VITE_SOLANA_PRIVATE_KEY);
       const walletAddress = keypair.publicKey.toBase58();
       setLoading(true);
