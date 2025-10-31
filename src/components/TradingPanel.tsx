@@ -17,8 +17,8 @@ export function TradingPanel({ token }: TradingPanelProps) {
   const [buyAmount, setBuyAmount] = useState("");
   const [sellPercentage, setSellPercentage] = useState("");
   
-  const { solanaBalance, tokenBalance, loading, refreshBalance } = useBalance(token.address, Number(token.decimals));
-  const { createTransaction } = useTrade(token.address, Number(token.decimals));
+  const { solanaBalance, tokenBalance, tokenAtomicBalance, loading, refreshBalance } = useBalance(token.address, Number(token.decimals));
+  const { createTransaction } = useTrade(token.address, tokenAtomicBalance);
 
   const keypair = createKeypair(import.meta.env.VITE_SOLANA_PRIVATE_KEY);
   const connection = createConnection();

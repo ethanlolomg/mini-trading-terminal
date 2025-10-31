@@ -8,7 +8,7 @@ import { VersionedTransaction } from "@solana/web3.js";
 
 export const useTrade = (
   tokenAddress: string,
-  tokenDecimals: number,
+  tokenAtomicBalance: Decimal,
 ) => {
   const createTransaction = useCallback(
     async (params: { direction: "buy" | "sell", value: number, signer: PublicKey }) => {
@@ -18,7 +18,7 @@ export const useTrade = (
       if (direction === "buy") {
         atomicAmount = new Decimal(value).mul(LAMPORTS_PER_SOL);
       } else {
-        atomicAmount = new Decimal(value).mul(new Decimal(10).pow(Number(tokenDecimals))).div(100);
+        atomicAmount = tokenAtomicBalance.mul(value).div(100);
       }
 
       // Get order from Jupiter
