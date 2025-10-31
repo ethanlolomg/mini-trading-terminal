@@ -1,16 +1,15 @@
 import { Connection, PublicKey, Keypair, VersionedTransaction } from "@solana/web3.js";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import Decimal from "decimal.js";
+import bs58 from "bs58";
 
 export const createConnection = () => {
   return new Connection(import.meta.env.VITE_HELIUS_RPC_URL);
 };
 
 export const createKeypair = (privateKey: string) => {
-  const privateKeyBytes = Uint8Array.from(
-    Buffer.from(privateKey, 'hex')
-  );
-  return Keypair.fromSecretKey(privateKeyBytes);
+  const secretKey = bs58.decode(privateKey);
+  return Keypair.fromSecretKey(secretKey);
 };
 
 export const getSolanaBalance = async (publicKey: string, connection: Connection): Promise<Decimal> => {
