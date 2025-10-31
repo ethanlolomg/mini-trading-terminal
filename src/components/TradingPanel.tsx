@@ -35,10 +35,7 @@ export function TradingPanel({ token }: TradingPanelProps) {
         throw new Error("Trade failed");
       }
     } catch (error) {
-      console.error("Trade error:", error);
-      if (error.message?.includes("Failed to deserialize Jupiter transaction")) {
-        console.error("Jupiter API returned invalid transaction data");
-      }
+      
     } finally {
       refreshBalance();
     }

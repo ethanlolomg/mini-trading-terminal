@@ -31,10 +31,14 @@ export const useTrade = (
         signer,
       });
 
+      console.log("data", data);
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
       if (data.transaction === null) {
-        throw new Error(
-          `Invalid data from Jupiter.getOrder: ${JSON.stringify(data)}`,
-        );
+        throw new Error("Invalid data from Jupiter.getOrder");
       }
 
       // Parse the transaction from base64

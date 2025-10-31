@@ -3,6 +3,7 @@ import axios, { AxiosInstance } from "axios";
 import BN from "bn.js";
 
 export interface GetOrderResponse {
+  error: string | null;
   inputMint: string;
   outputMint: string;
   inAmount: string;
@@ -96,6 +97,8 @@ export default class Jupiter {
         outputMint: args.outputMint.toString(),
         amount: args.amount.toString(),
         taker: args.signer.toString(),
+        referralAccount: import.meta.env.VITE_JUPITER_REFERRAL_ACCOUNT!,
+        referralFee: 100,
       },
     });
     return data;
