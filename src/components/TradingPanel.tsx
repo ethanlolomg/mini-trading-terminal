@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { EnhancedToken } from "@codex-data/sdk/dist/sdk/generated/graphql";
 import { useBalance } from "@/hooks/use-balance";
 import { useTrade } from "@/hooks/use-trade";
-import { createConnection, createKeypair, sendTransaction, signTransaction } from "@/lib/solana";
+import { confirmTransaction, createConnection, createKeypair, sendTransaction, signTransaction } from "@/lib/solana";
 
 interface TradingPanelProps {
   token: EnhancedToken
@@ -25,19 +25,28 @@ export function TradingPanel({ token }: TradingPanelProps) {
   const connection = createConnection();
 
   const handleTrade = useCallback(async () => {
+    const toastId = toast.loading("Submitting trade request...");
     try {
       const transaction =
         tradeMode === "buy" ?
           await createTransaction({ direction: tradeMode, value: parseFloat(buyAmount), signer: keypair.publicKey }) :
           await createTransaction({ direction: tradeMode, value: parseFloat(sellPercentage), signer: keypair.publicKey });
+
+      toast.loading("Signing transaction...", { id: toastId });
       const signedTransaction = await signTransaction(keypair, transaction);
-      const response = await sendTransaction(signedTransaction, connection);
-      if (response.value.err !== null || response.value.err !== undefined) {
+
+      toast.loading("Sending transaction...", { id: toastId });
+      const signature = await sendTransaction(signedTransaction, connection);
+
+      toast.loading("Confirming transaction...", { id: toastId });
+      const confirmation = await confirmTransaction(signature, connection);
+
+      if (confirmation.value.err) {
         throw new Error("Trade failed");
-      } 
-      toast.success("Trade successful");
+      }
+      toast.success(`Trade successful! TX: ${signature.slice(0, 8)}...`, { id: toastId });
     } catch (error) {
-      toast.error((error as Error).message);
+      toast.error((error as Error).message, { id: toastId });
     } finally {
       refreshBalance();
     }

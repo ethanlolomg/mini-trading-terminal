@@ -31,8 +31,6 @@ export const useTrade = (
         signer,
       });
 
-      console.log("data", data);
-
       if (data.error) {
         throw new Error(data.error);
       }

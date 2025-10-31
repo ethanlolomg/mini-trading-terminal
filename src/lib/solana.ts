@@ -51,22 +51,22 @@ export const getTokenBalance = async (
   }
 };
 
-export const signTransaction = async (keypair: Keypair, transaction: VersionedTransaction) => {
+export const signTransaction = (keypair: Keypair, transaction: VersionedTransaction): VersionedTransaction => {
   transaction.sign([keypair]);
-  const serializedTx = transaction.serialize();
-  return VersionedTransaction.deserialize(Buffer.from(serializedTx));
+  return transaction;
 };
 
 export const sendTransaction = async (transaction: VersionedTransaction, connection: Connection) => {
   const signature = await connection.sendTransaction(transaction);
+  return signature;
+};
+
+export const confirmTransaction = async (signature: string, connection: Connection) => {
   const blockHash = await connection.getLatestBlockhash();
-  const response = await connection.confirmTransaction(
-    {
-      signature,
-      blockhash: blockHash.blockhash,
-      lastValidBlockHeight: blockHash.lastValidBlockHeight,
-    },
-    "processed",
-  );
-  return response;
+  const confirmation = await connection.confirmTransaction({
+    signature,
+    blockhash: blockHash.blockhash,
+    lastValidBlockHeight: blockHash.lastValidBlockHeight,
+  }, "confirmed");
+  return confirmation;
 };
