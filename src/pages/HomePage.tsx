@@ -1,6 +1,7 @@
 import { Codex } from "@codex-data/sdk";
 import { useEffect, useState } from "react";
 import NetworkList from "@/components/NetworkList";
+import { getCodexClient } from "@/lib/codex";
 
 type Network = {
   id: number;
@@ -29,15 +30,7 @@ export default function HomePage() {
 
   useEffect(() => {
     const fetchNetworks = async () => {
-      const apiKey = import.meta.env.VITE_CODEX_API_KEY;
-      if (!apiKey) {
-        setError("API key is not configured. Cannot fetch networks.");
-        setLoading(false);
-        return;
-      }
-
-      const codexClient = new Codex(apiKey);
-
+      const codexClient = getCodexClient();
       try {
         const result = await codexClient.queries.getNetworks({});
         const allNetworks = result.getNetworks?.filter(net => net != null) as Network[] || [];

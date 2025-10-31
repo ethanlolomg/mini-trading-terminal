@@ -1,34 +1,68 @@
 import { useCallback, useEffect, useState } from "react";
-import { getTokenBalance, createKeypair, createConnection, getSolanaBalance } from "@/lib/solana";
+import { createKeypair } from "@/lib/solana";
+import { getCodexClient } from "@/lib/codex";
 import Decimal from "decimal.js";
-import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 
-export const useBalance = (tokenAddress: string, tokenDecimals: number) => {
-  const [solanaBalance, setSolBalance] = useState<number>(0);
-  const [solanaAtomicBalance, setSolanaAtomicBalance] = useState<Decimal>(new Decimal(0));
+export const useBalance = (tokenAddress: string, tokenDecimals: number, nativeDecimals: number, networkId: number) => {
+  const [nativeBalance, setNativeBalance] = useState<number>(0);
+  const [nativeAtomicBalance, setNativeAtomicBalance] = useState<Decimal>(new Decimal(0));
   const [tokenBalance, setTokenBalance] = useState<number>(0);
   const [tokenAtomicBalance, setTokenAtomicBalance] = useState<Decimal>(new Decimal(0));
   const [loading, setLoading] = useState<boolean>(true);
 
   const refreshBalance = useCallback(async () => {
-    const connection = createConnection();
-    const keypair = createKeypair(import.meta.env.VITE_SOLANA_PRIVATE_KEY);
-    const publicKey = keypair.publicKey.toBase58();
-    setLoading(true);
-    const tokenAtomicBalance = await getTokenBalance(publicKey, tokenAddress, connection);
-    const tokenBalance = tokenAtomicBalance.div(new Decimal(10).pow(tokenDecimals));
-    setTokenBalance(Number(tokenBalance));
-    setTokenAtomicBalance(tokenAtomicBalance);
-    const solAtomicBalance = await getSolanaBalance(publicKey, connection);
-    const solBalance = solAtomicBalance.div(LAMPORTS_PER_SOL);
-    setSolBalance(Number(solBalance));
-    setSolanaAtomicBalance(solAtomicBalance);
-    setLoading(false);
-  }, [tokenAddress, tokenDecimals]);
+    try {
+      const keypair = createKeypair(import.meta.env.VITE_SOLANA_PRIVATE_KEY);
+      const walletAddress = keypair.publicKey.toBase58();
+      setLoading(true);
+
+      const sdk = getCodexClient();
+      const balanceResponse = await sdk.queries.balances({
+        input: {
+          networks: [networkId],
+          walletAddress: walletAddress,
+          includeNative: true,
+        },
+      });
+
+      // Process native balance (SOL)
+      const nativeTokenId = `native:${networkId}`;
+      const nativeBalance = balanceResponse.balances.items.find(
+        item => item.tokenId === nativeTokenId
+      );
+
+      if (nativeBalance) {
+        setNativeBalance(nativeBalance.shiftedBalance);
+        setNativeAtomicBalance(new Decimal(nativeBalance.balance).div(10 ** nativeDecimals));
+      } else {
+        setNativeBalance(0);
+        setNativeAtomicBalance(new Decimal(0));
+      }
+
+      // Process token balance
+      const tokenTokenId = `${tokenAddress}:${networkId}`;
+      const tokenBalanceItem = balanceResponse.balances.items.find(
+        item => item.tokenId === tokenTokenId
+      );
+
+      if (tokenBalanceItem) {
+        setTokenBalance(tokenBalanceItem.shiftedBalance);
+        setTokenAtomicBalance(new Decimal(tokenBalanceItem.balance).div(10 ** tokenDecimals));
+      } else {
+        setTokenBalance(0);
+        setTokenAtomicBalance(new Decimal(0));
+      }
+
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching balances:", error);
+      setLoading(false);
+    }
+  }, [tokenAddress, networkId]);
 
   useEffect(() => {
     refreshBalance();
   }, [refreshBalance]);
 
-  return { solanaBalance, tokenBalance, solanaAtomicBalance, tokenAtomicBalance, loading, refreshBalance };
+  return { nativeBalance, nativeAtomicBalance, tokenBalance, tokenAtomicBalance, loading, refreshBalance };
 };
