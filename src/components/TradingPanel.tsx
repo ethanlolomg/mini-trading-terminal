@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { EnhancedToken } from "@codex-data/sdk/dist/sdk/generated/graphql";
+import { createConnection, fetchSolanaBalance } from "@/lib/solana";
+import { Keypair, PublicKey } from "@solana/web3.js";
 
 interface TradingPanelProps {
   token: EnhancedToken
@@ -30,11 +32,30 @@ export function TradingPanel({ token }: TradingPanelProps) {
   const fetchBalance = async () => {
     try {
       setLoading(true);
-      // TODO: Implement actual Solana balance fetching using privateKey
-      setBalance(10.5);
-      setTokenBalance(1000);
+
+      // Create keypair from private key
+      const privateKeyBytes = Uint8Array.from(
+        Buffer.from(privateKey, 'hex')
+      );
+      const keypair = Keypair.fromSecretKey(privateKeyBytes);
+      const publicKey = keypair.publicKey;
+
+      // Create connection
+      const connection = createConnection();
+
+      // Fetch SOL balance
+      const solBalance = await fetchSolanaBalance(publicKey.toBase58(), connection);
+      setBalance(solBalance / 1e9); // Convert lamports to SOL
+
+      // For SPL token balance, we need to get the associated token account
+      // This requires @solana/spl-token package which needs to be installed
+      // For now, we'll set a placeholder
+      setTokenBalance(0);
+
     } catch (error) {
       console.error("Error fetching balance:", error);
+      setBalance(0);
+      setTokenBalance(0);
     } finally {
       setLoading(false);
     }
