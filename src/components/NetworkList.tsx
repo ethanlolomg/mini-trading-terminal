@@ -1,7 +1,5 @@
-'use client';
-
-import React from 'react'; // Removed useState
-import Link from 'next/link';
+import React from 'react';
+import { Link } from 'react-router-dom';
 import {
   Command,
   CommandEmpty,
@@ -59,7 +57,7 @@ export default function NetworkList({
         {topNetworks.length > 0 && (
           <CommandGroup heading="Top">
             {topNetworks.map((network) => (
-              <Link href={`/networks/${network.id}`} key={network.id} passHref>
+              <Link to={`/networks/${network.id}`} key={network.id}>
                 <CommandItem
                   value={network.name} // Value used for searching/filtering
                   className="cursor-pointer" // Make it look clickable
@@ -75,7 +73,7 @@ export default function NetworkList({
         {restNetworks.length > 0 && (
           <CommandGroup heading="Rest">
             {restNetworks.map((network) => (
-              <Link href={`/networks/${network.id}`} key={network.id} passHref>
+              <Link to={`/networks/${network.id}`} key={network.id}>
                 <CommandItem
                   value={network.name} // Value used for searching/filtering
                   className="cursor-pointer" // Make it look clickable

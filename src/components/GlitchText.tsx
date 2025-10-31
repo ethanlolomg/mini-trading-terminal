@@ -1,5 +1,3 @@
-'use client'; // Mark as client component
-
 import React, { useState, useEffect, useRef } from 'react';
 
 interface GlitchTextProps {
