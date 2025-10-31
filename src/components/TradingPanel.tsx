@@ -2,14 +2,14 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { EnhancedToken } from "@codex-data/sdk/dist/sdk/generated/graphql";
 
 interface TradingPanelProps {
-  tokenSymbol?: string;
-  tokenName?: string;
-  tokenAddress?: string;
+  token: EnhancedToken
 }
 
-export function TradingPanel({ tokenSymbol, tokenName, tokenAddress }: TradingPanelProps) {
+export function TradingPanel({ token }: TradingPanelProps) {
+  const tokenSymbol = token.symbol;
   const [tradeMode, setTradeMode] = useState<"buy" | "sell">("buy");
   const [buyAmount, setBuyAmount] = useState("");
   const [sellPercentage, setSellPercentage] = useState("");

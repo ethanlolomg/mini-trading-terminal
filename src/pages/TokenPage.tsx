@@ -5,19 +5,7 @@ import { TokenChart, ChartDataPoint } from "@/components/TokenChart";
 import { TradingPanel } from "@/components/TradingPanel";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
-type TokenDetails = {
-  id: string;
-  address: string;
-  name?: string | null;
-  symbol?: string | null;
-  networkId?: number | null;
-  description?: string | null;
-  decimals?: number | null;
-  info?: {
-    imageThumbUrl?: string | null;
-  } | null;
-};
+import { EnhancedToken } from "@codex-data/sdk/dist/sdk/generated/graphql";
 
 type TokenEvent = {
   id: string;
@@ -32,7 +20,7 @@ export default function TokenPage() {
   const { networkId, tokenId } = useParams<{ networkId: string; tokenId: string }>();
   const networkIdNum = parseInt(networkId || '', 10);
 
-  const [details, setDetails] = useState<TokenDetails | null>(null);
+  const [details, setDetails] = useState<EnhancedToken | undefined>(undefined);
   const [bars, setBars] = useState<ChartDataPoint[]>([]);
   const [events, setEvents] = useState<TokenEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +61,7 @@ export default function TokenPage() {
         const eventsResult = results[2];
 
         if (detailsResult.status === 'fulfilled') {
-          setDetails(detailsResult.value.token as TokenDetails);
+          setDetails(detailsResult.value.token);
         }
 
         if (barsResult.status === 'fulfilled') {
@@ -194,11 +182,11 @@ export default function TokenPage() {
         </div>
 
         <div className="lg:col-span-1 space-y-6">
-          <TradingPanel
-            tokenSymbol={details?.symbol || undefined}
-            tokenName={details?.name || undefined}
-            tokenAddress={details?.address}
-          />
+          {details && (
+            <TradingPanel
+              token={details}
+            />
+          )}
 
           <Card>
             <CardHeader className="flex flex-row items-center space-x-4">
@@ -227,9 +215,9 @@ export default function TokenPage() {
                     <strong className="text-muted-foreground">Address:</strong>
                     <span className="font-mono block break-all" title={details.address}>{details.address}</span>
                   </p>
-                  {details.description && (
+                  {details.info?.description && (
                     <p className="text-sm">
-                      <strong className="text-muted-foreground">Description:</strong> {details.description}
+                      <strong className="text-muted-foreground">Description:</strong> {details.info?.description}
                     </p>
                   )}
                 </>
