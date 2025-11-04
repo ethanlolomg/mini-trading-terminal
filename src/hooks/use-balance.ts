@@ -37,13 +37,14 @@ export const useBalance = (tokenAddress: string, tokenDecimals: number, nativeDe
 
       // Process native balance (SOL)
       const nativeTokenId = `native:${networkId}`;
-      const nativeBalance = balanceResponse?.balances?.items.find(
+      const nativeBalanceItem = balanceResponse?.balances?.items.find(
         item => item.tokenId === nativeTokenId
       );
 
-      if (nativeBalance) {
-        setNativeAtomicBalance(new Decimal(nativeBalance.balance));
-        setNativeBalance(nativeAtomicBalance.div(10 ** nativeDecimals).toNumber());
+      if (nativeBalanceItem) {
+        const atomicBalance = new Decimal(nativeBalanceItem.balance);
+        setNativeAtomicBalance(atomicBalance);
+        setNativeBalance(atomicBalance.div(10 ** nativeDecimals).toNumber());
       } else {
         setNativeAtomicBalance(new Decimal(0));
         setNativeBalance(0);
