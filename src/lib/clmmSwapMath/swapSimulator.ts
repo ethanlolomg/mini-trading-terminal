@@ -50,7 +50,6 @@ export function swapInternal({
   sqrtPriceLimitX64,
   zeroForOne,
   isBaseInput,
-  blockTimestamp,
   includeExtraTickArrays,
   getTickArrayAddress,
 }: {
@@ -62,7 +61,6 @@ export function swapInternal({
   sqrtPriceLimitX64: BN;
   zeroForOne: boolean;
   isBaseInput: boolean;
-  blockTimestamp: number;
   includeExtraTickArrays: boolean;
   getTickArrayAddress?: (startIndex: number) => PublicKeyLike;
 }): SwapSimulationResult {
@@ -109,7 +107,6 @@ export function swapInternal({
     amountSpecified,
     zeroForOne,
     feeRate: configInfo.tradeFeeRate,
-    blockTimestamp,
   });
 
   while (!state.amountSpecifiedRemaining.isZero() && !state.sqrtPriceX64.eq(sqrtPriceLimitX64)) {
@@ -157,103 +154,78 @@ export function swapInternal({
     });
 
     let liquidityNext = state.liquidity;
-    do {
-      SwapState.updateVolatilityAccumulator({ state });
+    const feeRate = state.feeRate;
+    const isPriceChange = !state.sqrtPriceX64.eq(targetPrice);
 
-      const totalFeeRate = SwapState.getTotalFeeRate({ data: state });
-      const { isSkipped: isSkippedTickSpacing, boundedPrice } = SwapState.getSpacingBoundedPrice({
-        data: state,
+    let swapComputedResult;
+    if (isPriceChange) {
+      swapComputedResult = SwapMathUtil.computeSwap(
+        state.sqrtPriceX64,
         targetPrice,
+        state.liquidity,
+        state.amountSpecifiedRemaining,
+        feeRate,
+        isBaseInput,
         zeroForOne,
+        isFeeOnInput,
+      );
+
+      SwapState.applySwapAmounts({
+        state,
+        amountIn: swapComputedResult.amountIn,
+        amountOut: swapComputedResult.amountOut,
+        feeAmount: swapComputedResult.feeAmount,
+        isBaseInput,
+        isFeeOnInput,
+        protocolFeeRate: new BN(configInfo.protocolFeeRate),
+        fundFeeRate: new BN(configInfo.fundFeeRate),
+      });
+    } else {
+      swapComputedResult = SwapMathUtil.newSwapComputationResult({ sqrtPriceNextX64: targetPrice });
+    }
+
+    if (state.sqrtPriceNextX64.eq(swapComputedResult.sqrtPriceNextX64)) {
+      const limitOrderResult = TickUtil.matchLimitOrder({
+        tick: nextInitializedTick,
+        swapAmount: state.amountSpecifiedRemaining,
+        swapDirectionZeroForOne: zeroForOne,
+        isBaseInput,
+        feeRate,
+        isFeeOnInput,
       });
 
-      const isPriceChange = !state.sqrtPriceX64.eq(boundedPrice);
-
-      let swapComputedResult;
-      if (isPriceChange) {
-        swapComputedResult = SwapMathUtil.computeSwap(
-          state.sqrtPriceX64,
-          boundedPrice,
-          state.liquidity,
-          state.amountSpecifiedRemaining,
-          totalFeeRate,
-          isBaseInput,
-          zeroForOne,
-          isFeeOnInput,
-        );
-
+      if (limitOrderResult.amountIn.gt(BN_ZERO)) {
         SwapState.applySwapAmounts({
           state,
-          amountIn: swapComputedResult.amountIn,
-          amountOut: swapComputedResult.amountOut,
-          feeAmount: swapComputedResult.feeAmount,
+          amountIn: limitOrderResult.amountIn,
+          amountOut: limitOrderResult.amountOut,
+          feeAmount: limitOrderResult.ammFeeAmount,
           isBaseInput,
           isFeeOnInput,
           protocolFeeRate: new BN(configInfo.protocolFeeRate),
           fundFeeRate: new BN(configInfo.fundFeeRate),
         });
-      } else {
-        swapComputedResult = SwapMathUtil.newSwapComputationResult({ sqrtPriceNextX64: boundedPrice });
       }
 
-      const limitOrderUnfilledAmountBefore = TickUtil.limitOrderUnfilledAmount({ tick: nextInitializedTick });
-      if (state.sqrtPriceNextX64.eq(swapComputedResult.sqrtPriceNextX64)) {
-        const limitOrderResult = TickUtil.matchLimitOrder({
-          tick: nextInitializedTick,
-          swapAmount: state.amountSpecifiedRemaining,
-          swapDirectionZeroForOne: zeroForOne,
-          isBaseInput,
-          feeRate: totalFeeRate,
-          isFeeOnInput,
-        });
+      if (
+        TickUtil.hasLiquidity({ data: nextInitializedTick }) &&
+        !TickUtil.hasLimitOrders({ data: nextInitializedTick })
+      ) {
+        const liquidityNet = zeroForOne ? nextInitializedTick.liquidityNet.neg() : nextInitializedTick.liquidityNet;
 
-        if (limitOrderResult.amountIn.gt(BN_ZERO)) {
-          SwapState.applySwapAmounts({
-            state,
-            amountIn: limitOrderResult.amountIn,
-            amountOut: limitOrderResult.amountOut,
-            feeAmount: limitOrderResult.ammFeeAmount,
-            isBaseInput,
-            isFeeOnInput,
-            protocolFeeRate: new BN(configInfo.protocolFeeRate),
-            fundFeeRate: new BN(configInfo.fundFeeRate),
-          });
-        }
-
-        if (
-          TickUtil.hasLiquidity({ data: nextInitializedTick }) &&
-          !TickUtil.hasLimitOrders({ data: nextInitializedTick })
-        ) {
-          const liquidityNet = zeroForOne ? nextInitializedTick.liquidityNet.neg() : nextInitializedTick.liquidityNet;
-
-          liquidityNext = LiquidityMathUtil.addDelta(state.liquidity, liquidityNet);
-        }
-
-        state.tick =
-          (zeroForOne && !TickUtil.hasLimitOrders({ data: nextInitializedTick })) ||
-            (!zeroForOne && TickUtil.hasLimitOrders({ data: nextInitializedTick }))
-            ? state.tickNext - 1
-            : state.tickNext;
-      } else if (!state.sqrtPriceX64.eq(swapComputedResult.sqrtPriceNextX64)) {
-        state.tick = TickUtil.getTickAtSqrtPrice(swapComputedResult.sqrtPriceNextX64);
+        liquidityNext = LiquidityMathUtil.addDelta(state.liquidity, liquidityNet);
       }
 
-      state.sqrtPriceX64 = swapComputedResult.sqrtPriceNextX64;
-      SwapState.updateDynamicFeeIndex({ state, zeroForOne, isSkippedTickSpacing });
-      if (state.amountSpecifiedRemaining.isZero() || state.sqrtPriceX64.eq(targetPrice)) {
-        const limitOrderUnfilledAmountAfter = TickUtil.limitOrderUnfilledAmount({ tick: nextInitializedTick });
+      state.tick =
+        (zeroForOne && !TickUtil.hasLimitOrders({ data: nextInitializedTick })) ||
+          (!zeroForOne && TickUtil.hasLimitOrders({ data: nextInitializedTick }))
+          ? state.tickNext - 1
+          : state.tickNext;
+    } else if (!state.sqrtPriceX64.eq(swapComputedResult.sqrtPriceNextX64)) {
+      state.tick = TickUtil.getTickAtSqrtPrice(swapComputedResult.sqrtPriceNextX64);
+    }
 
-        if (
-          !state.amountSpecifiedRemaining.isZero() &&
-          !limitOrderUnfilledAmountAfter.eq(limitOrderUnfilledAmountBefore)
-        ) {
-          if (!limitOrderUnfilledAmountAfter.isZero()) throw Error("!limitOrderUnfilledAmountAfter.isZero()");
-        }
-        break;
-      }
-
-      // eslint-disable-next-line no-constant-condition
-    } while (true);
+    state.sqrtPriceX64 = swapComputedResult.sqrtPriceNextX64;
     state.liquidity = liquidityNext;
   }
 

@@ -16,8 +16,9 @@ export * from "./tickMath";
 export * from "./swapStep";
 export { swapInternal } from "./swapSimulator";
 export type { SwapSimulationResult } from "./swapSimulator";
+export { swapExactIn } from "./swap";
+export type { SwapExactInParams, SwapExactInResult } from "./swap";
 export type {
-  DynamicFeeInfoState,
   PoolInfoDecoded,
   ClmmConfigDecoded,
   TickDecoded,

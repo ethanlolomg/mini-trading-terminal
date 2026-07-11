@@ -42,10 +42,10 @@ export function TradingPanel({ token, pairs = [] }: TradingPanelProps) {
     const toastId = toast.loading("Submitting trade request...");
     try {
       const transaction =
-        await createTransaction({ 
-          direction: tradeMode, 
-          value: tradeMode === "buy" ? parseFloat(buyAmount) : parseFloat(sellPercentage), 
-          signer: keypair.publicKey 
+        await createTransaction({
+          direction: tradeMode,
+          value: tradeMode === "buy" ? parseFloat(buyAmount) : parseFloat(sellPercentage),
+          signer: keypair.publicKey
         });
 
       toast.loading("Signing transaction...", { id: toastId });
@@ -60,7 +60,7 @@ export function TradingPanel({ token, pairs = [] }: TradingPanelProps) {
       if (confirmation.value.err) {
         throw new Error("Trade failed");
       }
-      toast.success(`Trade successful! TX: ${signature.slice(0, 8)}...`, { id: toastId }); 
+      toast.success(`Trade successful! TX: ${signature.slice(0, 8)}...`, { id: toastId });
 
       // Refresh balance after 1 second
       setTimeout(refreshBalance, 1000);

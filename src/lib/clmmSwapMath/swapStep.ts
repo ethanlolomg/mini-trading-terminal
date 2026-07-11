@@ -12,20 +12,16 @@ import BN from "bn.js"
 import { mulDivCeil, mulDivFloor } from "./fixedPoint"
 import {
   BN_ZERO,
-  DYNAMIC_FEE_CONTROL_DENOMINATOR,
   FEE_RATE_DENOMINATOR,
   FEE_RATE_DENOMINATOR_VALUE,
-  MAX_FEE_RATE_NUMERATOR,
   MAX_TICK,
   MIN_TICK,
   Q64,
-  VOLATILITY_ACCUMULATOR_SCALE,
 } from "./constants"
 import { LiquidityMathUtil } from "./liquidityMath"
-import { DynamicFeeInfo, PoolFee } from "./poolFee"
 import { SqrtPriceMath } from "./sqrtPriceMath"
 import { TickUtil } from "./tickMath"
-import type { DynamicFeeInfoState, PoolInfoDecoded } from "./types"
+import type { PoolInfoDecoded } from "./types"
 
 export interface SwapStepResult {
   sqrtPriceNextX64: BN
@@ -46,20 +42,17 @@ interface SwapStateInterface {
   liquidity: BN,
   sqrtPriceNextX64: BN,
   tickNext: number,
-  baseFeeRate: number,
+  feeRate: number,
   tickSpacing: number,
-  tickSpacingIndex: number,
-  dynamicFeeInfo: DynamicFeeInfoState | undefined,
 }
 export class SwapState {
-  static newValue({ poolInfo, amountSpecified, zeroForOne, feeRate, blockTimestamp }: {
+  static newValue({ poolInfo, amountSpecified, zeroForOne, feeRate }: {
     poolInfo: PoolInfoDecoded,
     amountSpecified: BN,
     zeroForOne: boolean,
     feeRate: number,
-    blockTimestamp: number,
   }): SwapStateInterface {
-    const state: SwapStateInterface = {
+    return {
       amountSpecifiedRemaining: amountSpecified,
       amountCalculated: BN_ZERO,
       sqrtPriceX64: poolInfo.sqrtPriceX64,
@@ -71,18 +64,9 @@ export class SwapState {
       liquidity: poolInfo.liquidity,
       sqrtPriceNextX64: BN_ZERO,
       tickNext: 0,
-      baseFeeRate: feeRate,
+      feeRate,
       tickSpacing: poolInfo.tickSpacing,
-      tickSpacingIndex: 0,
-      dynamicFeeInfo: DynamicFeeInfo.getDynamicFeeInfo({ poolInfo }),
     }
-
-    if (state.dynamicFeeInfo) {
-      state.tickSpacingIndex = PoolFee.tickSpacingIndexFromTick(state.tick, state.tickSpacing)
-      DynamicFeeInfo.updateReference({ dynamicFeeInfo: state.dynamicFeeInfo, tickSpacingIndex: state.tickSpacingIndex, currentTimestamp: blockTimestamp })
-    }
-
-    return state
   }
 
   static getTargetPriceBasedOnNextTick({ data, tickNext, zeroForOne, sqrtPriceLimitX64 }: {
@@ -121,67 +105,6 @@ export class SwapState {
     return targetPrice
   }
 
-  static updateVolatilityAccumulator({ state }: {
-    state: SwapStateInterface,
-  }) {
-    if (!state.dynamicFeeInfo) return
-
-    DynamicFeeInfo.updateVolatilityAccumulator({ state: state.dynamicFeeInfo, tickSpacingIndex: state.tickSpacingIndex })
-  }
-
-  static computeDynamicFeeRate({ data, tickSpacing }: {
-    data: DynamicFeeInfoState,
-    tickSpacing: number,
-  }) {
-    const crossed = data.volatilityAccumulator * tickSpacing
-
-    const squared = crossed * crossed
-
-    const denominator = DYNAMIC_FEE_CONTROL_DENOMINATOR * VOLATILITY_ACCUMULATOR_SCALE * VOLATILITY_ACCUMULATOR_SCALE
-
-    const feeRate = mulDivCeil(new BN(data.dynamicFeeControl), new BN(squared), new BN(denominator)).toNumber()
-
-    if (feeRate > MAX_FEE_RATE_NUMERATOR) {
-      return MAX_FEE_RATE_NUMERATOR
-    } else {
-      return feeRate
-    }
-  }
-
-  static getTotalFeeRate({ data }: {
-    data: SwapStateInterface,
-  }) {
-    if (data.dynamicFeeInfo) {
-      const dynamicFeeRate = this.computeDynamicFeeRate({ data: data.dynamicFeeInfo, tickSpacing: data.tickSpacing })
-
-      const totalFeeRate = data.baseFeeRate + dynamicFeeRate
-      return Math.min(MAX_FEE_RATE_NUMERATOR, totalFeeRate)
-    }
-    return data.baseFeeRate
-  }
-
-  static getSpacingBoundedPrice({ data, targetPrice, zeroForOne }: {
-    data: SwapStateInterface,
-    targetPrice: BN,
-    zeroForOne: boolean
-  }) {
-    if (data.dynamicFeeInfo === undefined) return { isSkipped: true, boundedPrice: targetPrice }
-
-    if (data.liquidity.isZero() || data.dynamicFeeInfo.volatilityAccumulator === data.dynamicFeeInfo.maxVolatilityAccumulator) return { isSkipped: true, boundedPrice: targetPrice }
-
-    const tickSpacingI32 = data.tickSpacing
-    const boundedTick = zeroForOne ? data.tickSpacingIndex * tickSpacingI32 : (data.tickSpacingIndex + 1) * tickSpacingI32
-
-    const clampedTick = Math.max(MIN_TICK, Math.min(MAX_TICK, boundedTick))
-    const boundedSqrtPrice = TickUtil.getSqrtPriceAtTick(clampedTick)
-
-    if (zeroForOne) {
-      return { isSkipped: false, boundedPrice: BN.max(targetPrice, boundedSqrtPrice) }
-    } else {
-      return { isSkipped: false, boundedPrice: BN.min(targetPrice, boundedSqrtPrice) }
-    }
-  }
-
   static applySwapAmounts({ state, amountIn, amountOut, feeAmount, isBaseInput, isFeeOnInput, protocolFeeRate, fundFeeRate, }: {
     state: SwapStateInterface,
     amountIn: BN,
@@ -203,31 +126,6 @@ export class SwapState {
     }
 
     this.splitFee({ state, feeAmount, protocolFeeRate, fundFeeRate })
-  }
-
-  static updateDynamicFeeIndex({ state, zeroForOne, isSkippedTickSpacing }: {
-    state: SwapStateInterface,
-    zeroForOne: boolean,
-    isSkippedTickSpacing: boolean,
-  }) {
-    if (state.dynamicFeeInfo === undefined) return
-    if (isSkippedTickSpacing) {
-      const tickIndex = state.sqrtPriceX64.eq(state.sqrtPriceNextX64) ? state.tickNext : state.tick
-
-      let tickSpacingIndex = PoolFee.tickSpacingIndexFromTick(tickIndex, state.tickSpacing)
-
-      if (!zeroForOne && tickIndex % state.tickSpacing === 0) {
-        tickSpacingIndex = tickSpacingIndex - 1
-      }
-
-      state.tickSpacingIndex = tickSpacingIndex
-
-      if (state.dynamicFeeInfo.volatilityAccumulator !== state.dynamicFeeInfo.maxVolatilityAccumulator) {
-        this.updateVolatilityAccumulator({ state })
-      }
-    }
-
-    state.tickSpacingIndex += zeroForOne ? -1 : 1
   }
 
   static splitFee({ state, feeAmount, protocolFeeRate, fundFeeRate }: {

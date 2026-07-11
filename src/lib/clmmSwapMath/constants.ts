@@ -79,11 +79,6 @@ export enum CollectFeeOn {
 
 export const MAX_TICK_SPACING = 1000;
 
-export const MAX_FEE_RATE_NUMERATOR = 100_000;
-export const VOLATILITY_ACCUMULATOR_SCALE = 10_000;
-export const REDUCTION_FACTOR_DENOMINATOR = 10_000;
-export const DYNAMIC_FEE_CONTROL_DENOMINATOR = 100_000;
-
 export const TICK_ARRAY_SIZE_USIZE = 60;
 
 export const REWARD_NUM = 3;

@@ -9,18 +9,6 @@
  */
 import type BN from "bn.js";
 
-export interface DynamicFeeInfoState {
-  filterPeriod: number;
-  decayPeriod: number;
-  reductionFactor: number;
-  dynamicFeeControl: number;
-  maxVolatilityAccumulator: number;
-  tickSpacingIndexReference: number;
-  volatilityReference: number;
-  volatilityAccumulator: number;
-  lastUpdateTimestamp: BN;
-}
-
 export interface PoolInfoDecoded {
   configId: PublicKeyLike;
   mintA: PublicKeyLike;
@@ -38,7 +26,6 @@ export interface PoolInfoDecoded {
   feeGrowthGlobalX64B: BN;
   feeOn: number;
   tickArrayBitmap: Buffer;
-  dynamicFeeInfo: DynamicFeeInfoState;
 }
 
 export interface ClmmConfigDecoded {
