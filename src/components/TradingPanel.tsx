@@ -1,25 +1,39 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { EnhancedToken } from "@codex-data/sdk/dist/sdk/generated/graphql";
+import { EnhancedToken, PairFilterResult } from "@codex-data/sdk/dist/sdk/generated/graphql";
 import { useBalance } from "@/hooks/use-balance";
 import { useTrade } from "@/hooks/use-trade";
+import { resolveRoute, type PoolCandidate } from "@/lib/router";
 import { confirmTransaction, createConnection, createKeypair, sendTransaction, signTransaction } from "@/lib/solana";
 
 interface TradingPanelProps {
   token: EnhancedToken
+  pairs?: PairFilterResult[]
 }
 
-export function TradingPanel({ token }: TradingPanelProps) {
+export function TradingPanel({ token, pairs = [] }: TradingPanelProps) {
   const tokenSymbol = token.symbol;
   const [tradeMode, setTradeMode] = useState<"buy" | "sell">("buy");
   const [buyAmount, setBuyAmount] = useState("");
   const [sellPercentage, setSellPercentage] = useState("");
-  
+
+  const route = useMemo(() => {
+    const candidates: PoolCandidate[] = pairs.map((p) => ({
+      exchangeName: p.exchange?.name,
+      exchangeAddress: p.exchange?.address,
+      poolAddress: p.pair?.address,
+      token0: p.pair?.token0,
+      token1: p.pair?.token1,
+      tickSpacing: p.pair?.tickSpacing,
+    }));
+    return resolveRoute(candidates, token.address);
+  }, [pairs, token.address]);
+
   const { nativeBalance: solanaBalance, tokenBalance, tokenAtomicBalance, loading, refreshBalance } = useBalance(token.address, Number(token.decimals), 9, Number(token.networkId));
-  const { createTransaction } = useTrade(token.address, tokenAtomicBalance);
+  const { createTransaction } = useTrade(token.address, tokenAtomicBalance, route);
 
   const keypair = createKeypair(import.meta.env.VITE_SOLANA_PRIVATE_KEY);
   const connection = createConnection();

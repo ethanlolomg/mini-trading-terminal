@@ -192,6 +192,7 @@ export default function TokenPage() {
           {details && (
             <TradingPanel
               token={details}
+              pairs={pairs}
             />
           )}
 

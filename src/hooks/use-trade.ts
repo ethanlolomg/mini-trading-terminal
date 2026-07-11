@@ -2,13 +2,14 @@ import { useCallback } from "react";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { NATIVE_MINT } from "@solana/spl-token";
 import Decimal from "decimal.js";
-import Jupiter from "@/lib/jupiter";
 import { bn } from "@/lib/utils";
-import { VersionedTransaction } from "@solana/web3.js";
+import { createConnection } from "@/lib/solana";
+import { buildSwapTx, type ResolvedRoute } from "@/lib/router";
 
 export const useTrade = (
   tokenAddress: string,
   tokenAtomicBalance: Decimal,
+  route: ResolvedRoute,
 ) => {
   const createTransaction = useCallback(
     async (params: { direction: "buy" | "sell", value: number, signer: PublicKey }) => {
@@ -21,34 +22,28 @@ export const useTrade = (
         atomicAmount = tokenAtomicBalance.mul(value).div(100);
       }
 
-      // Get order from Jupiter
-      const data = await Jupiter.getOrder({
-        inputMint:
-          direction === "buy" ? NATIVE_MINT : new PublicKey(tokenAddress),
-        outputMint:
-          direction === "buy" ? new PublicKey(tokenAddress) : NATIVE_MINT,
+      const inputMint =
+        direction === "buy" ? NATIVE_MINT : new PublicKey(tokenAddress);
+      const outputMint =
+        direction === "buy" ? new PublicKey(tokenAddress) : NATIVE_MINT;
+
+      const connection = createConnection();
+
+      // Dispatch to the resolved venue (Raydium CLMM or Jupiter) via the router.
+      const transaction = await buildSwapTx(route.routeId, {
+        inputMint,
+        outputMint,
         amount: bn(atomicAmount),
         signer,
+        connection,
+        poolAddress: route.poolAddress,
       });
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      if (data.transaction === null) {
-        throw new Error("Invalid data from Jupiter.getOrder");
-      }
-
-      // Parse the transaction from base64
-      const transactionBuffer = Buffer.from(data.transaction, "base64");
-      const transaction = VersionedTransaction.deserialize(transactionBuffer);
-
 
       return transaction;
     },
-    [tokenAddress, tokenAtomicBalance],
+    [tokenAddress, tokenAtomicBalance, route.routeId, route.poolAddress],
   );
-  
+
   return {
     createTransaction,
   };
