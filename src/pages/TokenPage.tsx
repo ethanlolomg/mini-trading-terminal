@@ -3,6 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { useEffect, useState, Suspense } from "react";
 import { TokenChart, ChartDataPoint } from "@/components/TokenChart";
 import { TradingPanel } from "@/components/TradingPanel";
+import { InstantTradeToggle, InstantTradePanel } from "@/components/instant-trade";
+import { useIsDesktop } from "@/hooks/useMediaQuery";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EnhancedToken, PairFilterResult, PairRankingAttribute, RankingDirection } from "@codex-data/sdk/dist/sdk/generated/graphql";
@@ -26,6 +28,7 @@ export default function TokenPage() {
   const [events, setEvents] = useState<TokenEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const isDesktop = useIsDesktop();
 
   useEffect(() => {
     if (isNaN(networkIdNum) || !tokenId) {
@@ -153,6 +156,13 @@ export default function TokenPage() {
             <TokenChart data={bars} title={`${tokenSymbol || 'Token'} Price Chart`} />
           </Suspense>
 
+          {/* Instant Trade toggle — desktop only, sits right below the chart. */}
+          {isDesktop && (
+            <div>
+              <InstantTradeToggle />
+            </div>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle>Recent Transactions</CardTitle>
@@ -262,6 +272,8 @@ export default function TokenPage() {
           </Card>
         </div>
       </div>
+
+      {isDesktop && details && <InstantTradePanel token={details} pairs={pairs} />}
     </main>
   );
 }

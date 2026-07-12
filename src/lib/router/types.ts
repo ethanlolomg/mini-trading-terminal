@@ -15,6 +15,11 @@ export interface SwapParams {
   signer: PublicKey;
   connection: Connection;
   slippageBps?: number;
+  /**
+   * Compute-unit price (micro-lamports per CU) added as the transaction's
+   * priority fee. Honored by `raydium-clmm`; Jupiter manages its own fee.
+   */
+  priorityFeeMicroLamports?: number;
   /** Required for `raydium-clmm`; ignored by Jupiter. */
   poolAddress?: string;
 }

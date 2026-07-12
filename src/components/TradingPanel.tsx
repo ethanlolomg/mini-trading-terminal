@@ -7,7 +7,7 @@ import { EnhancedToken, PairFilterResult } from "@codex-data/sdk/dist/sdk/genera
 import { useBalance } from "@/hooks/use-balance";
 import { useTrade } from "@/hooks/use-trade";
 import { resolveRoute, type PoolCandidate } from "@/lib/router";
-import { confirmTransaction, createConnection, createKeypair, sendTransaction, signTransaction } from "@/lib/solana";
+import { createKeypair } from "@/lib/solana";
 
 interface TradingPanelProps {
   token: EnhancedToken
@@ -33,41 +33,19 @@ export function TradingPanel({ token, pairs = [] }: TradingPanelProps) {
   }, [pairs, token.address]);
 
   const { nativeBalance: solanaBalance, tokenBalance, tokenAtomicBalance, loading, refreshBalance } = useBalance(token.address, Number(token.decimals), 9, Number(token.networkId));
-  const { createTransaction } = useTrade(token.address, tokenAtomicBalance, route);
+  const { executeTrade } = useTrade(token.address, tokenAtomicBalance, route);
 
   const keypair = createKeypair(import.meta.env.VITE_SOLANA_PRIVATE_KEY);
-  const connection = createConnection();
 
   const handleTrade = useCallback(async () => {
-    const toastId = toast.loading("Submitting trade request...");
-    try {
-      const transaction =
-        await createTransaction({
-          direction: tradeMode,
-          value: tradeMode === "buy" ? parseFloat(buyAmount) : parseFloat(sellPercentage),
-          signer: keypair.publicKey
-        });
-
-      toast.loading("Signing transaction...", { id: toastId });
-      const signedTransaction = signTransaction(keypair, transaction);
-
-      toast.loading("Sending transaction...", { id: toastId });
-      const signature = await sendTransaction(signedTransaction, connection);
-
-      toast.loading("Confirming transaction...", { id: toastId });
-      const confirmation = await confirmTransaction(signature, connection);
-
-      if (confirmation.value.err) {
-        throw new Error("Trade failed");
-      }
-      toast.success(`Trade successful! TX: ${signature.slice(0, 8)}...`, { id: toastId });
-
-      // Refresh balance after 1 second
-      setTimeout(refreshBalance, 1000);
-    } catch (error) {
-      toast.error((error as Error).message, { id: toastId });
-    }
-  }, [tradeMode, buyAmount, sellPercentage, createTransaction, keypair, connection, refreshBalance]);
+    await executeTrade({
+      direction: tradeMode,
+      value: tradeMode === "buy" ? parseFloat(buyAmount) : parseFloat(sellPercentage),
+      slippageBps: 100,
+      priorityFee: { mode: "auto" },
+      onSuccess: () => setTimeout(refreshBalance, 1000),
+    });
+  }, [tradeMode, buyAmount, sellPercentage, executeTrade, refreshBalance]);
 
   const solBuyAmountPresets = [0.0001, 0.001, 0.01, 0.1];
   const percentagePresets = [25, 50, 75, 100];

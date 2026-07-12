@@ -34,7 +34,8 @@
     "recharts": "^2.15.3",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.2.0",
-    "vite-plugin-node-polyfills": "^0.24.0"
+    "vite-plugin-node-polyfills": "^0.24.0",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

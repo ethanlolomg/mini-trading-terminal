@@ -32,7 +32,7 @@ const COMPUTE_UNIT_LIMIT = 600_000;
  * WSOL as needed, and assembles a v0 message.
  */
 export async function buildRaydiumClmmSwapTx(params: SwapParams): Promise<VersionedTransaction> {
-  const { inputMint, outputMint, amount, signer, connection, poolAddress } = params;
+  const { inputMint, outputMint, amount, signer, connection, poolAddress, priorityFeeMicroLamports } = params;
   if (!poolAddress) throw new Error("raydium-clmm route requires a poolAddress");
   const slippageBps = params.slippageBps ?? DEFAULT_SLIPPAGE_BPS;
 
@@ -87,9 +87,22 @@ export async function buildRaydiumClmmSwapTx(params: SwapParams): Promise<Versio
 
   const ixs: TransactionInstruction[] = [
     ComputeBudgetProgram.setComputeUnitLimit({ units: COMPUTE_UNIT_LIMIT }),
+  ];
+
+  // Priority fee: bid a compute-unit price so validators prioritize the swap.
+  if (priorityFeeMicroLamports && priorityFeeMicroLamports > 0) {
+    ixs.push(
+      ComputeBudgetProgram.setComputeUnitPrice({
+        microLamports: BigInt(Math.floor(priorityFeeMicroLamports)),
+      }),
+    );
+    console.log("priorityFeeMicroLamports", priorityFeeMicroLamports);
+  }
+
+  ixs.push(
     createAssociatedTokenAccountIdempotentInstruction(signer, inputTokenAccount, signer, inputMint, inputProgram),
     createAssociatedTokenAccountIdempotentInstruction(signer, outputTokenAccount, signer, outputMint, outputProgram),
-  ];
+  );
 
   // Wrap SOL: fund the WSOL ATA with the input lamports and sync.
   if (inputIsSol) {
