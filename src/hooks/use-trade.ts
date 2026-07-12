@@ -83,10 +83,20 @@ export const useTrade = (
         const keypair = createKeypair(import.meta.env.VITE_SOLANA_PRIVATE_KEY);
         const connection = createConnection();
 
-        const priorityFeeMicroLamports =
-          priorityFee.mode === "fixed"
-            ? priorityFee.microLamports
-            : await getPriorityFeeEstimate(connection);
+        // Jupiter Ultra returns an already-serialized transaction with its own
+        // priority fee baked in — our estimate would be discarded, so skip the
+        // RPC round-trip entirely for that route.
+        let priorityFeeMicroLamports: number | undefined;
+        if (route.routeId === "raydium-clmm") {
+          if (priorityFee.mode === "fixed") {
+            priorityFeeMicroLamports = priorityFee.microLamports;
+          } else {
+            const accountKeys = route.poolAddress
+              ? [new PublicKey(route.poolAddress)]
+              : [];
+            priorityFeeMicroLamports = await getPriorityFeeEstimate(connection, accountKeys);
+          }
+        }
 
         const transaction = await createTransaction({
           direction,
@@ -121,7 +131,7 @@ export const useTrade = (
         toast.error((error as Error).message, { id: toastId });
       }
     },
-    [createTransaction],
+    [createTransaction, route.routeId, route.poolAddress],
   );
 
   return {

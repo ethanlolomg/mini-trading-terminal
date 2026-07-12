@@ -61,30 +61,41 @@ export const sendTransaction = async (transaction: VersionedTransaction, connect
   return signature;
 };
 
-/** Used when the network returns no recent fee samples. */
+/** Used when the fee estimate is unavailable. */
 const AUTO_PRIORITY_FEE_FALLBACK = 50_000; // micro-lamports per CU
 
 /**
  * Estimate a compute-unit price (micro-lamports per CU) for `priorityFee: auto`.
- * Uses the standard `getRecentPrioritizationFees` RPC (available on Helius) and
- * takes the 75th percentile of recent non-zero fees for reasonably fast
- * inclusion, falling back to a constant if no samples are available.
+ * Uses Helius's dedicated `getPriorityFeeEstimate` RPC (the standard
+ * `getRecentPrioritizationFees` reports mostly-zero for a single account, which
+ * is useless as a signal). `accountKeys` scopes the estimate to the accounts the
+ * swap writes to (e.g. the pool). Falls back to a constant on any error.
  */
 export const getPriorityFeeEstimate = async (
   connection: Connection,
-  lockedWritableAccounts: PublicKey[] = [],
+  accountKeys: PublicKey[] = [],
 ): Promise<number> => {
   try {
-    const fees = await connection.getRecentPrioritizationFees(
-      lockedWritableAccounts.length ? { lockedWritableAccounts } : undefined,
-    );
-    const values = fees
-      .map((f) => f.prioritizationFee)
-      .filter((v) => v > 0)
-      .sort((a, b) => a - b);
-    if (values.length === 0) return AUTO_PRIORITY_FEE_FALLBACK;
-    const idx = Math.min(Math.floor(values.length * 0.75), values.length - 1);
-    return Math.max(values[idx], 1);
+    const response = await fetch(connection.rpcEndpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: "priority-fee-estimate",
+        method: "getPriorityFeeEstimate",
+        params: [
+          {
+            accountKeys: accountKeys.map((k) => k.toBase58()),
+            options: { recommended: true },
+          },
+        ],
+      }),
+    });
+    const json = await response.json();
+    const estimate = json?.result?.priorityFeeEstimate;
+    return typeof estimate === "number" && estimate > 0
+      ? Math.ceil(estimate)
+      : AUTO_PRIORITY_FEE_FALLBACK;
   } catch (error) {
     console.error("Error estimating priority fee:", error);
     return AUTO_PRIORITY_FEE_FALLBACK;
