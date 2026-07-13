@@ -1,64 +1,48 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { EnhancedToken } from "@codex-data/sdk/dist/sdk/generated/graphql";
-import { useBalance } from "@/hooks/use-balance";
+import { EnhancedToken, PairFilterResult } from "@codex-data/sdk/dist/sdk/generated/graphql";
+import { useTokenBalance } from "@/hooks/use-token-balance";
 import { useTrade } from "@/hooks/use-trade";
-import { confirmTransaction, createConnection, createKeypair, sendTransaction, signTransaction } from "@/lib/solana";
+import { useResolvedRoute } from "@/hooks/use-resolved-route";
+import { createKeypair } from "@/lib/solana";
 
 interface TradingPanelProps {
   token: EnhancedToken
+  pairs?: PairFilterResult[]
 }
 
-export function TradingPanel({ token }: TradingPanelProps) {
+export function TradingPanel({ token, pairs = [] }: TradingPanelProps) {
   const tokenSymbol = token.symbol;
   const [tradeMode, setTradeMode] = useState<"buy" | "sell">("buy");
   const [buyAmount, setBuyAmount] = useState("");
   const [sellPercentage, setSellPercentage] = useState("");
-  
-  const { nativeBalance: solanaBalance, tokenBalance, tokenAtomicBalance, loading, refreshBalance } = useBalance(token.address, Number(token.decimals), 9, Number(token.networkId));
-  const { createTransaction } = useTrade(token.address, tokenAtomicBalance);
 
-  const keypair = createKeypair(import.meta.env.VITE_SOLANA_PRIVATE_KEY);
-  const connection = createConnection();
+  const route = useResolvedRoute(token.address, pairs);
+
+  const { nativeBalance: solanaBalance, tokenBalance, tokenAtomicBalance, loading, refreshBalance } = useTokenBalance();
+  const { executeTrade, envReady } = useTrade(token.address, tokenAtomicBalance, route);
+
+  // Decode the signer once for the wallet-address display, so we don't re-run
+  // the bs58 decode every render. Empty string until the env is configured.
+  const walletAddress = useMemo(
+    () => (envReady ? createKeypair(import.meta.env.VITE_SOLANA_PRIVATE_KEY).publicKey.toBase58() : ""),
+    [envReady],
+  );
 
   const handleTrade = useCallback(async () => {
-    const toastId = toast.loading("Submitting trade request...");
-    try {
-      const transaction =
-        await createTransaction({ 
-          direction: tradeMode, 
-          value: tradeMode === "buy" ? parseFloat(buyAmount) : parseFloat(sellPercentage), 
-          signer: keypair.publicKey 
-        });
+    await executeTrade({
+      direction: tradeMode,
+      value: tradeMode === "buy" ? parseFloat(buyAmount) : parseFloat(sellPercentage),
+      slippageBps: 100,
+      priorityFee: { mode: "auto" },
+      onSuccess: () => setTimeout(refreshBalance, 1000),
+    });
+  }, [tradeMode, buyAmount, sellPercentage, executeTrade, refreshBalance]);
 
-      toast.loading("Signing transaction...", { id: toastId });
-      const signedTransaction = signTransaction(keypair, transaction);
-
-      toast.loading("Sending transaction...", { id: toastId });
-      const signature = await sendTransaction(signedTransaction, connection);
-
-      toast.loading("Confirming transaction...", { id: toastId });
-      const confirmation = await confirmTransaction(signature, connection);
-
-      if (confirmation.value.err) {
-        throw new Error("Trade failed");
-      }
-      toast.success(`Trade successful! TX: ${signature.slice(0, 8)}...`, { id: toastId }); 
-
-      // Refresh balance after 1 second
-      setTimeout(refreshBalance, 1000);
-    } catch (error) {
-      toast.error((error as Error).message, { id: toastId });
-    }
-  }, [tradeMode, buyAmount, sellPercentage, createTransaction, keypair, connection, refreshBalance]);
-
-  const solBuyAmountPresets = [0.0001, 0.001, 0.01, 0.1];
-  const percentagePresets = [25, 50, 75, 100];
-
-  if (!import.meta.env.VITE_SOLANA_PRIVATE_KEY || !import.meta.env.VITE_HELIUS_RPC_URL || !import.meta.env.VITE_JUPITER_REFERRAL_ACCOUNT) {
+  if (!envReady) {
     return (
       <Card>
         <CardHeader>
@@ -73,6 +57,9 @@ export function TradingPanel({ token }: TradingPanelProps) {
     );
   }
 
+  const solBuyAmountPresets = [0.0001, 0.001, 0.01, 0.1];
+  const percentagePresets = [25, 50, 75, 100];
+
   return (
     <Card>
       <CardHeader>
@@ -80,12 +67,12 @@ export function TradingPanel({ token }: TradingPanelProps) {
           <CardTitle>Trade {tokenSymbol || "Token"}</CardTitle>
           <button
             onClick={() => {
-              navigator.clipboard.writeText(keypair.publicKey.toBase58());
+              navigator.clipboard.writeText(walletAddress);
               toast.success("Wallet address copied!");
             }}
             className="text-xs text-muted-foreground font-mono hover:text-foreground transition-colors cursor-pointer"
           >
-            {keypair.publicKey.toBase58().slice(0, 4)}...{keypair.publicKey.toBase58().slice(-4)}
+            {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
           </button>
         </div>
       </CardHeader>

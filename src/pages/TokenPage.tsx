@@ -3,6 +3,9 @@ import { Link, useParams } from "react-router-dom";
 import { useEffect, useState, Suspense } from "react";
 import { TokenChart, ChartDataPoint } from "@/components/TokenChart";
 import { TradingPanel } from "@/components/TradingPanel";
+import { InstantTradeToggle, InstantTradePanel } from "@/components/instant-trade";
+import { useIsDesktop } from "@/hooks/use-media-query";
+import { TokenBalanceProvider } from "@/hooks/use-token-balance";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EnhancedToken, PairFilterResult, PairRankingAttribute, RankingDirection } from "@codex-data/sdk/dist/sdk/generated/graphql";
@@ -26,6 +29,7 @@ export default function TokenPage() {
   const [events, setEvents] = useState<TokenEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const isDesktop = useIsDesktop();
 
   useEffect(() => {
     if (isNaN(networkIdNum) || !tokenId) {
@@ -138,6 +142,12 @@ export default function TokenPage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center p-6 md:p-12 space-y-6">
+      <TokenBalanceProvider
+        tokenAddress={tokenId ?? ""}
+        tokenDecimals={Number(details?.decimals ?? 0)}
+        nativeDecimals={9}
+        networkId={networkIdNum}
+      >
       <div className="w-full max-w-6xl flex justify-between items-center">
         <h1 className="text-2xl md:text-3xl font-bold truncate pr-4">
           {tokenName} {tokenSymbol}
@@ -152,6 +162,13 @@ export default function TokenPage() {
           <Suspense fallback={<Card><CardHeader><CardTitle>Price Chart</CardTitle></CardHeader><CardContent><p>Loading chart...</p></CardContent></Card>}>
             <TokenChart data={bars} title={`${tokenSymbol || 'Token'} Price Chart`} />
           </Suspense>
+
+          {/* Instant Trade toggle — desktop only, sits right below the chart. */}
+          {isDesktop && (
+            <div>
+              <InstantTradeToggle />
+            </div>
+          )}
 
           <Card>
             <CardHeader>
@@ -192,6 +209,7 @@ export default function TokenPage() {
           {details && (
             <TradingPanel
               token={details}
+              pairs={pairs}
             />
           )}
 
@@ -261,6 +279,9 @@ export default function TokenPage() {
           </Card>
         </div>
       </div>
+
+      {isDesktop && details && <InstantTradePanel token={details} pairs={pairs} />}
+      </TokenBalanceProvider>
     </main>
   );
 }

@@ -77,3 +77,5 @@ export const useBalance = (tokenAddress: string, tokenDecimals: number, nativeDe
 
   return { nativeBalance, nativeAtomicBalance, tokenBalance, tokenAtomicBalance, loading, refreshBalance };
 };
+
+export type UseBalanceResult = ReturnType<typeof useBalance>;
