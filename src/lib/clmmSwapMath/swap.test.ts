@@ -109,7 +109,7 @@ const emptyBitmapExt: TickArrayBitmapExtensionDecoded = {
 };
 
 describe("swapExactIn", () => {
-  it("oneForZero (SOL->token style, input = mintB) returns output and the tick-array account", () => {
+  it("oneForZero (input = mintB) fully fills, returning output, fee and the tick-array account", () => {
     const res = swapExactIn({
       poolInfo: buildPool(),
       ammConfig,
@@ -120,19 +120,8 @@ describe("swapExactIn", () => {
     });
 
     expect(res.amountOut.gt(new BN(0))).toBe(true);
-    expect(res.remainingAccounts.map((a) => a.toString())).toContain("Arr0");
-  });
-
-  it("charges a fee (amountOut strictly less than a zero-fee reference is implied)", () => {
-    const res = swapExactIn({
-      poolInfo: buildPool(),
-      ammConfig,
-      tickArrays: [{ address: ARR_ADDR, value: buildTickArray() }],
-      bitmapExt: emptyBitmapExt,
-      inputMint: MINT_B,
-      amountIn: new BN(1_000_000),
-    });
     expect(res.feeAmount.gte(new BN(0))).toBe(true);
     expect(res.allTrade).toBe(true);
+    expect(res.remainingAccounts.map((a) => a.toString())).toContain("Arr0");
   });
 });
