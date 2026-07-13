@@ -40,10 +40,6 @@ export interface TickDecoded {
   tick: number;
   liquidityNet: BN;
   liquidityGross: BN;
-  orderPhase: BN;
-  ordersAmount: BN;
-  partFilledOrdersRemaining: BN;
-  unfilledRatioX64: BN;
 }
 
 export interface TickArrayDecoded {

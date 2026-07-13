@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { X, Wallet, Zap, Settings2 } from "lucide-react";
 import { EnhancedToken, PairFilterResult } from "@codex-data/sdk/dist/sdk/generated/graphql";
 import { cn } from "@/lib/utils";
-import { useBalance } from "@/hooks/use-balance";
+import { useTokenBalance } from "@/hooks/use-token-balance";
 import { useTrade } from "@/hooks/use-trade";
 import { useDraggable } from "@/hooks/use-draggable";
 import { useResizable } from "@/hooks/use-resizable";
@@ -43,12 +43,7 @@ export function InstantTradePanel({ token, pairs = [] }: InstantTradePanelProps)
 
   const route = useResolvedRoute(token.address, pairs);
 
-  const { nativeBalance, tokenBalance, tokenAtomicBalance, refreshBalance } = useBalance(
-    token.address,
-    Number(token.decimals),
-    9,
-    Number(token.networkId),
-  );
+  const { nativeBalance, tokenBalance, tokenAtomicBalance, refreshBalance } = useTokenBalance();
   const { executeTrade, envReady } = useTrade(token.address, tokenAtomicBalance, route);
 
   const [isTrading, setIsTrading] = useState(false);

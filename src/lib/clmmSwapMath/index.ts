@@ -1,21 +1,12 @@
 /**
- * clmmSwapMath — pure, reusable Raydium CLMM swap math.
+ * clmmSwapMath — pure, reusable Raydium CLMM exact-in swap math.
  *
- * No app/RPC dependencies (BN/Decimal only). Adapted from Raydium SDK V2
- * (Apache-2.0); see per-file headers for attribution. `swapExactIn` is the
- * public entry point; the rest of the surface is its supporting primitives.
+ * No app/RPC dependencies (BN only). Adapted from Raydium SDK V2 (Apache-2.0),
+ * trimmed to the exact-in swap path. `swapExactIn` is the public entry point;
+ * `math.ts` holds the supporting primitives.
  */
-export * from "./constants";
-export * from "./fixedPoint";
-export * from "./sqrtPriceMath";
-export * from "./liquidityMath";
-export * from "./poolFee";
-export * from "./tickMath";
-export * from "./swapStep";
-export { swapInternal } from "./swapSimulator";
-export type { SwapSimulationResult } from "./swapSimulator";
-export { swapExactIn } from "./swap";
-export type { SwapExactInParams, SwapExactInResult } from "./swap";
+export * from "./math";
+export * from "./swap";
 export type {
   PoolInfoDecoded,
   ClmmConfigDecoded,

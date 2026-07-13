@@ -5,6 +5,7 @@ import { TokenChart, ChartDataPoint } from "@/components/TokenChart";
 import { TradingPanel } from "@/components/TradingPanel";
 import { InstantTradeToggle, InstantTradePanel } from "@/components/instant-trade";
 import { useIsDesktop } from "@/hooks/use-media-query";
+import { TokenBalanceProvider } from "@/hooks/use-token-balance";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EnhancedToken, PairFilterResult, PairRankingAttribute, RankingDirection } from "@codex-data/sdk/dist/sdk/generated/graphql";
@@ -141,6 +142,12 @@ export default function TokenPage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center p-6 md:p-12 space-y-6">
+      <TokenBalanceProvider
+        tokenAddress={tokenId ?? ""}
+        tokenDecimals={Number(details?.decimals ?? 0)}
+        nativeDecimals={9}
+        networkId={networkIdNum}
+      >
       <div className="w-full max-w-6xl flex justify-between items-center">
         <h1 className="text-2xl md:text-3xl font-bold truncate pr-4">
           {tokenName} {tokenSymbol}
@@ -274,6 +281,7 @@ export default function TokenPage() {
       </div>
 
       {isDesktop && details && <InstantTradePanel token={details} pairs={pairs} />}
+      </TokenBalanceProvider>
     </main>
   );
 }

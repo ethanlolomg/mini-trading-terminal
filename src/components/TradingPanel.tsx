@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { EnhancedToken, PairFilterResult } from "@codex-data/sdk/dist/sdk/generated/graphql";
-import { useBalance } from "@/hooks/use-balance";
+import { useTokenBalance } from "@/hooks/use-token-balance";
 import { useTrade } from "@/hooks/use-trade";
 import { useResolvedRoute } from "@/hooks/use-resolved-route";
 import { createKeypair } from "@/lib/solana";
@@ -22,7 +22,7 @@ export function TradingPanel({ token, pairs = [] }: TradingPanelProps) {
 
   const route = useResolvedRoute(token.address, pairs);
 
-  const { nativeBalance: solanaBalance, tokenBalance, tokenAtomicBalance, loading, refreshBalance } = useBalance(token.address, Number(token.decimals), 9, Number(token.networkId));
+  const { nativeBalance: solanaBalance, tokenBalance, tokenAtomicBalance, loading, refreshBalance } = useTokenBalance();
   const { executeTrade, envReady } = useTrade(token.address, tokenAtomicBalance, route);
 
   // Decode the signer once for the wallet-address display, so we don't re-run

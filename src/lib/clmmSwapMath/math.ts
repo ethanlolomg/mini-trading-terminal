@@ -1,49 +1,209 @@
 /**
- * Raydium CLMM swap math — tick / tick-array math.
+ * clmmSwapMath — pure Raydium CLMM math primitives (no app/RPC deps).
  *
- * Adapted from Raydium SDK V2 (src/raydium/clmm/libraries/tickArrayUtil.ts),
- * Apache-2.0. https://github.com/raydium-io/raydium-sdk-V2
- *
- * Only the PURE tick math is kept (bitmap scanning, tick<->sqrtPrice, limit
- * order matching). The RPC fetch helper (`fetchTickArrays`) and PDA-address
- * derivation (`findTickArrayAddress`) are intentionally omitted — those belong
- * to the Raydium adapter (src/lib/router/adapters/raydiumClmm/).
- * `findTickArrayStartIndex` returns plain start indices so the adapter can map
- * them to PDAs.
- *
- * Edits vs upstream: `@/common` (FEE_RATE_DENOMINATOR_VALUE) repointed to
- * ./constants; layout `ReturnType<...>` types repointed to ./types; bigNum ->
- * ./fixedPoint.
+ * Adapted from Raydium SDK V2 (Apache-2.0), trimmed to the exact-in swap path:
+ * constants, fixed-point helpers, sqrt-price / liquidity / tick math.
+ * https://github.com/raydium-io/raydium-sdk-V2
  */
 import BN from "bn.js";
-import Decimal from "decimal.js";
-import { mostSignificantBit, mulDivCeil, mulDivFloor } from "./fixedPoint";
-import {
-  BIT_PRECISION,
-  BN_ONE,
-  BN_ZERO,
-  EXTENSION_TICKARRAY_BITMAP_SIZE,
-  FEE_RATE_DENOMINATOR_VALUE,
-  LOG_B_2_X32,
-  LOG_B_P_ERR_MARGIN_LOWER_X64,
-  LOG_B_P_ERR_MARGIN_UPPER_X64,
-  MAX_SQRT_PRICE_X64,
-  MAX_TICK,
-  MIN_SQRT_PRICE_X64,
-  MIN_TICK,
-  Q64,
-  TICK_ARRAY_BITMAP_SIZE,
-  TICK_ARRAY_SIZE,
-  TICK_TO_SQRT_PRICE_FACTORS,
-} from "./constants";
 import type { PoolInfoDecoded, TickArrayBitmapExtensionDecoded, TickArrayDecoded, TickDecoded } from "./types";
 
-export interface LimitOrderMatchResult {
-  amountIn: BN;
-  amountOut: BN;
-  ammFeeAmount: BN;
+// ===================== constants =====================
+export const Q64 = new BN(1).shln(64);
+
+export const RESOLUTION = 64;
+
+export const U64_MAX = new BN(1).shln(64).subn(1);
+
+export const MIN_TICK = -443636;
+
+export const MAX_TICK = 443636;
+
+export const MIN_SQRT_PRICE_X64 = new BN("4295048016");
+
+export const MAX_SQRT_PRICE_X64 = new BN("79226673521066979257578248091");
+
+export const LOG_B_2_X32 = new BN("59543866431248");
+
+export const LOG_B_P_ERR_MARGIN_LOWER_X64 = new BN("184467440737095516");
+
+export const LOG_B_P_ERR_MARGIN_UPPER_X64 = new BN("15793534762490258745");
+
+export const BIT_PRECISION = 16;
+
+export const TICK_ARRAY_BITMAP_SIZE = 512;
+
+export const TICK_ARRAY_SIZE = 60;
+
+export const TICK_TO_SQRT_PRICE_FACTORS: { bit: number; factor: BN }[] = [
+  { bit: 0, factor: new BN("fffcb933bd6fb800", 16) }, // i=0
+  { bit: 1, factor: new BN("fff97272373d4000", 16) }, // i=1
+  { bit: 2, factor: new BN("fff2e50f5f657000", 16) }, // i=2
+  { bit: 3, factor: new BN("ffe5caca7e10f000", 16) }, // i=3
+  { bit: 4, factor: new BN("ffcb9843d60f7000", 16) }, // i=4
+  { bit: 5, factor: new BN("ff973b41fa98e800", 16) }, // i=5
+  { bit: 6, factor: new BN("ff2ea16466c9b000", 16) }, // i=6
+  { bit: 7, factor: new BN("fe5dee046a9a3800", 16) }, // i=7
+  { bit: 8, factor: new BN("fcbe86c7900bb000", 16) }, // i=8
+  { bit: 9, factor: new BN("f987a7253ac65800", 16) }, // i=9
+  { bit: 10, factor: new BN("f3392b0822bb6000", 16) }, // i=10
+  { bit: 11, factor: new BN("e7159475a2caf000", 16) }, // i=11
+  { bit: 12, factor: new BN("d097f3bdfd2f2000", 16) }, // i=12
+  { bit: 13, factor: new BN("a9f746462d9f8000", 16) }, // i=13
+  { bit: 14, factor: new BN("70d869a156f31c00", 16) }, // i=14
+  { bit: 15, factor: new BN("31be135f97ed3200", 16) }, // i=15
+  { bit: 16, factor: new BN("9aa508b5b85a500", 16) }, // i=16
+  { bit: 17, factor: new BN("5d6af8dedc582c", 16) }, // i=17
+  { bit: 18, factor: new BN("2216e584f5fa", 16) }, // i=18
+];
+
+export const FEE_RATE_DENOMINATOR = 1_000_000;
+
+// Upstream exports this from `@/common`; kept local to avoid app-layer deps.
+export const FEE_RATE_DENOMINATOR_VALUE = new BN(1_000_000);
+
+export enum CollectFeeOn {
+  FromInput = 0,
+  TokenOnlyA = 1,
+  TokenOnlyB = 2,
 }
 
+export const REWARD_NUM = 3;
+
+export const EXTENSION_TICKARRAY_BITMAP_SIZE = 14;
+
+export const BN_ZERO = new BN(0);
+export const BN_ONE = new BN(1);
+
+// ===================== fixed-point primitives =====================
+export function mulDivFloor(a: BN, b: BN, denominator: BN): BN {
+  if (denominator.isZero()) {
+    throw new Error("Division by zero")
+  }
+  return a.mul(b).div(denominator)
+}
+
+export function mulDivCeil(a: BN, b: BN, denominator: BN): BN {
+  if (denominator.isZero()) {
+    throw new Error("Division by zero")
+  }
+  const product = a.mul(b)
+  const quotient = product.div(denominator)
+  const remainder = product.mod(denominator)
+
+  if (remainder.isZero()) {
+    return quotient
+  }
+  return quotient.addn(1)
+}
+
+export function divRoundingUp(x: BN, y: BN) {
+  return x.div(y).add(x.mod(y).isZero() ? BN_ZERO : BN_ONE)
+}
+
+export function mostSignificantBit(n: BN): number {
+  if (n.isZero()) {
+    return -1
+  }
+  return n.bitLength() - 1
+}
+
+// ===================== sqrt-price math =====================
+export class SqrtPriceMath {
+  /** Token A (token0) added → price falls. √P_new = L·√P / (L + Δx·√P). */
+  static getNextSqrtPriceFromAmountARoundingUp(sqrtPriceX64: BN, liquidity: BN, amount: BN): BN {
+    if (amount.isZero()) {
+      return sqrtPriceX64
+    }
+
+    const numerator = liquidity.shln(RESOLUTION)
+    const product = amount.mul(sqrtPriceX64)
+    const denominator = numerator.add(product)
+
+    if (denominator.gte(numerator)) {
+      return mulDivCeil(numerator, sqrtPriceX64, denominator)
+    }
+
+    const quotient = mulDivFloor(numerator, BN_ONE, sqrtPriceX64)
+    return mulDivCeil(numerator, BN_ONE, quotient.add(amount))
+  }
+
+  /** Token B (token1) added → price rises. √P_new = √P + Δy / L. */
+  static getNextSqrtPriceFromAmountBRoundingDown(sqrtPriceX64: BN, liquidity: BN, amount: BN): BN {
+    if (amount.isZero()) {
+      return sqrtPriceX64
+    }
+
+    const quotient = amount.shln(RESOLUTION).div(liquidity)
+    return sqrtPriceX64.add(quotient)
+  }
+
+  static getNextSqrtPriceFromInput(
+    sqrtPriceX64: BN,
+    liquidity: BN,
+    amountIn: BN,
+    zeroForOne: boolean
+  ): BN {
+    if (!sqrtPriceX64.gt(BN_ZERO)) throw Error('sqrtPriceX64.gt(BN_ZERO)')
+    if (!liquidity.gt(BN_ZERO)) throw Error('liquidity.gt(BN_ZERO)')
+
+    if (zeroForOne) {
+      return this.getNextSqrtPriceFromAmountARoundingUp(sqrtPriceX64, liquidity, amountIn)
+    } else {
+      return this.getNextSqrtPriceFromAmountBRoundingDown(sqrtPriceX64, liquidity, amountIn)
+    }
+  }
+}
+
+// ===================== liquidity math =====================
+export class LiquidityMathUtil {
+  static getDeltaAmountAUnsigned(sqrtPriceX64A: BN, sqrtPriceX64B: BN, liquidity: BN, roundUp: boolean): BN {
+    if (sqrtPriceX64A.gt(sqrtPriceX64B)) {
+      [sqrtPriceX64A, sqrtPriceX64B] = [sqrtPriceX64B, sqrtPriceX64A];
+    }
+
+    const numerator1 = liquidity.shln(RESOLUTION);
+    const numerator2 = sqrtPriceX64B.sub(sqrtPriceX64A);
+
+    if (!sqrtPriceX64A.gt(BN_ZERO)) throw Error("!sqrtPriceX64A.gt(BN_ZERO)");
+
+    const result = roundUp
+      ? divRoundingUp(mulDivCeil(numerator1, numerator2, sqrtPriceX64B), sqrtPriceX64A)
+      : mulDivFloor(numerator1, numerator2, sqrtPriceX64B).div(sqrtPriceX64A);
+
+    if (result.gt(U64_MAX)) throw Error("MaxTokenOverflow");
+
+    return result;
+  }
+
+  static getDeltaAmountBUnsigned(sqrtPriceX64A: BN, sqrtPriceX64B: BN, liquidity: BN, roundUp: boolean): BN {
+    if (sqrtPriceX64A.gt(sqrtPriceX64B)) {
+      [sqrtPriceX64A, sqrtPriceX64B] = [sqrtPriceX64B, sqrtPriceX64A];
+    }
+
+    const result = roundUp
+      ? mulDivCeil(liquidity, sqrtPriceX64B.sub(sqrtPriceX64A), Q64)
+      : mulDivFloor(liquidity, sqrtPriceX64B.sub(sqrtPriceX64A), Q64);
+
+    if (result.gt(U64_MAX)) throw Error("MaxTokenOverflow");
+
+    return result;
+  }
+
+  static addDelta(x: BN, y: BN): BN {
+    if (y.isNeg()) {
+      const absY = y.neg();
+      if (x.lt(absY)) {
+        throw new Error("Liquidity underflow");
+      }
+      return x.sub(absY);
+    } else {
+      return x.add(y);
+    }
+  }
+}
+
+// ===================== tick / tick-array math =====================
 export class TickArrayBitmapUtil {
   private static scanLinearBitmap({
     bitmap,
@@ -235,10 +395,6 @@ export class TickArrayBitmapUtil {
     }
     return collected.slice(0, count);
   }
-
-  static maxTickInTickarrayBitmap(tickSpacing: number): number {
-    return tickSpacing * TICK_ARRAY_SIZE * TICK_ARRAY_BITMAP_SIZE;
-  }
 }
 
 export class TickArrayUtil {
@@ -298,37 +454,13 @@ export class TickArrayUtil {
     return start * ticksInArray;
   }
 
-  static getTickOffsetInArray(tick: number, tickSpacing: number): number {
-    if (tick % tickSpacing != 0) {
-      throw new Error("tickIndex % tickSpacing not equal 0");
-    }
-    const startIndex = this.getTickArrayStartIndex(tick, tickSpacing);
-    return Math.floor((tick - startIndex) / tickSpacing);
-  }
-
   static tickCount(tickSpacing: number) {
     return TICK_ARRAY_SIZE * tickSpacing;
-  }
-
-  static getMinTick(tickSpacing: number): number {
-    return Math.ceil(MIN_TICK / tickSpacing) * tickSpacing;
-  }
-
-  static getMaxTick(tickSpacing: number): number {
-    return Math.floor(MAX_TICK / tickSpacing) * tickSpacing;
   }
 }
 
 export class TickUtil {
   static isInitialized({ data }: { data: TickDecoded }): boolean {
-    return this.hasLiquidity({ data }) || this.hasLimitOrders({ data });
-  }
-
-  static hasLimitOrders({ data }: { data: TickDecoded }): boolean {
-    return !data.ordersAmount.isZero() || !data.partFilledOrdersRemaining.isZero();
-  }
-
-  static hasLiquidity({ data }: { data: TickDecoded }): boolean {
     return !data.liquidityGross.isZero();
   }
 
@@ -358,152 +490,6 @@ export class TickUtil {
     }
 
     return ratio;
-  }
-
-  static getLimitOrderOutput({ amountIn, tick, zeroForOne }: { amountIn: BN; tick: number; zeroForOne: boolean }): BN {
-    if (zeroForOne) {
-      const priceX64 = TickUtil.getPriceAtTick(tick, false);
-      return mulDivFloor(amountIn, priceX64, Q64);
-    } else {
-      const priceX64 = TickUtil.getPriceAtTick(tick, true);
-      return mulDivFloor(amountIn, Q64, priceX64);
-    }
-  }
-  static getLimitOrderInput({ amountOut, tick, zeroForOne }: { amountOut: BN; tick: number; zeroForOne: boolean }): BN {
-    if (zeroForOne) {
-      const priceX64 = TickUtil.getPriceAtTick(tick, true);
-      return mulDivCeil(amountOut, priceX64, Q64);
-    } else {
-      const priceX64 = TickUtil.getPriceAtTick(tick, false);
-      return mulDivCeil(amountOut, Q64, priceX64);
-    }
-  }
-
-  static limitOrderUnfilledAmount({ tick }: { tick: TickDecoded }): BN {
-    return tick.ordersAmount.add(tick.partFilledOrdersRemaining);
-  }
-
-  static matchLimitOrder({
-    tick,
-    swapAmount,
-    swapDirectionZeroForOne,
-    isBaseInput,
-    feeRate,
-    isFeeOnInput,
-  }: {
-    tick: TickDecoded;
-    swapAmount: BN;
-    swapDirectionZeroForOne: boolean;
-    isBaseInput: boolean;
-    feeRate: number;
-    isFeeOnInput: boolean;
-  }): LimitOrderMatchResult {
-    const result: LimitOrderMatchResult = {
-      amountIn: BN_ZERO,
-      amountOut: BN_ZERO,
-      ammFeeAmount: BN_ZERO,
-    };
-
-    const totalUnfilledAmount = this.limitOrderUnfilledAmount({ tick });
-    if (swapAmount.isZero() || totalUnfilledAmount.isZero()) {
-      return result;
-    }
-
-    if (isBaseInput) {
-      if (isFeeOnInput) {
-        result.ammFeeAmount = mulDivCeil(swapAmount, new BN(feeRate), FEE_RATE_DENOMINATOR_VALUE);
-        result.amountIn = swapAmount.sub(result.ammFeeAmount);
-      } else {
-        result.amountIn = swapAmount;
-      }
-
-      result.amountOut = this.getLimitOrderOutput({
-        amountIn: result.amountIn,
-        tick: tick.tick,
-        zeroForOne: swapDirectionZeroForOne,
-      });
-
-      if (result.amountOut.gt(totalUnfilledAmount)) {
-        result.amountOut = totalUnfilledAmount;
-        result.amountIn = this.getLimitOrderInput({
-          amountOut: totalUnfilledAmount,
-          tick: tick.tick,
-          zeroForOne: !swapDirectionZeroForOne,
-        });
-
-        if (isFeeOnInput) {
-          result.ammFeeAmount = mulDivCeil(
-            result.amountIn,
-            new BN(feeRate),
-            FEE_RATE_DENOMINATOR_VALUE.sub(new BN(feeRate)),
-          );
-        }
-      }
-    } else {
-      const netOutput = BN.min(swapAmount, totalUnfilledAmount);
-
-      if (isFeeOnInput) {
-        result.amountOut = netOutput;
-      } else {
-        result.amountOut = BN.min(
-          mulDivCeil(netOutput, FEE_RATE_DENOMINATOR_VALUE, FEE_RATE_DENOMINATOR_VALUE.sub(new BN(feeRate))),
-          totalUnfilledAmount,
-        );
-      }
-
-      result.amountIn = this.getLimitOrderInput({
-        amountOut: result.amountOut,
-        tick: tick.tick,
-        zeroForOne: !swapDirectionZeroForOne,
-      });
-
-      if (isFeeOnInput) {
-        result.ammFeeAmount = mulDivCeil(
-          result.amountIn,
-          new BN(feeRate),
-          FEE_RATE_DENOMINATOR_VALUE.sub(new BN(feeRate)),
-        );
-      }
-    }
-
-    let consumeFromPartRemaining = BN_ZERO;
-    if (tick.partFilledOrdersRemaining.gt(BN_ZERO)) {
-      consumeFromPartRemaining = BN.min(tick.partFilledOrdersRemaining, result.amountOut);
-
-      if (consumeFromPartRemaining.gt(BN_ZERO)) {
-        tick.unfilledRatioX64 = mulDivFloor(tick.unfilledRatioX64, tick.partFilledOrdersRemaining.sub(consumeFromPartRemaining), tick.partFilledOrdersRemaining)
-      }
-
-      tick.partFilledOrdersRemaining = tick.partFilledOrdersRemaining.sub(consumeFromPartRemaining);
-    }
-    const amountOutContinueToConsume = result.amountOut.sub(consumeFromPartRemaining);
-
-    if (amountOutContinueToConsume.gt(BN_ZERO)) {
-      if (!tick.partFilledOrdersRemaining.isZero()) throw Error("!tick.partFilledOrdersRemaining.isZero()");
-      if (tick.ordersAmount.lt(amountOutContinueToConsume)) throw Error("InvalidLimitOrderAmount");
-
-      tick.orderPhase = tick.orderPhase.add(BN_ONE);
-      tick.unfilledRatioX64 = mulDivFloor(Q64, tick.ordersAmount.sub(amountOutContinueToConsume), tick.ordersAmount);
-      tick.partFilledOrdersRemaining = tick.ordersAmount.sub(amountOutContinueToConsume);
-      tick.ordersAmount = BN_ZERO;
-    }
-
-    if (!isFeeOnInput) {
-      result.ammFeeAmount = mulDivCeil(result.amountOut, new BN(feeRate), FEE_RATE_DENOMINATOR_VALUE);
-      result.amountOut = result.amountOut.sub(result.ammFeeAmount);
-    }
-
-    return result;
-  }
-
-  private static getPriceAtTick(tick: number, roundUp: boolean): BN {
-    const sqrtPriceX64 = this.getSqrtPriceAtTick(tick);
-
-    if (roundUp) {
-      return sqrtPriceX64.mul(sqrtPriceX64).add(Q64.subn(1)).div(Q64);
-    } else {
-      return sqrtPriceX64.mul(sqrtPriceX64).div(Q64);
-    }
   }
 
   static getTickAtSqrtPrice(sqrtPriceX64: BN): number {
@@ -579,80 +565,4 @@ export class TickUtil {
     }
   }
 
-  static sqrtPriceX64ToPrice(sqrtPriceX64: BN, decimalsA: number, decimalsB: number): Decimal {
-    const sqrtPriceSquared = sqrtPriceX64.mul(sqrtPriceX64);
-
-    const decimalDiff = decimalsA - decimalsB;
-
-    const DECIMAL_PRECISION = 20;
-    const PRECISION_MULTIPLIER = new BN(10).pow(new BN(DECIMAL_PRECISION));
-
-    const numerator = sqrtPriceSquared.mul(PRECISION_MULTIPLIER);
-    const denominator = new BN(1).shln(128);
-    const scaledResult = numerator.div(denominator);
-
-    let resultStr = scaledResult.toString();
-
-    while (resultStr.length <= DECIMAL_PRECISION) {
-      resultStr = "0" + resultStr;
-    }
-
-    const integerPart = resultStr.slice(0, -DECIMAL_PRECISION);
-    const decimalPart = resultStr.slice(-DECIMAL_PRECISION);
-    const priceStr = integerPart + "." + decimalPart;
-
-    const price = new Decimal(priceStr).mul(new Decimal(10).pow(decimalDiff));
-
-    return price;
-  }
-
-  static tickToPrice(tick: number, decimalsA: number, decimalsB: number): Decimal {
-    const sqrtPriceX64 = TickUtil.getSqrtPriceAtTick(tick);
-    return this.sqrtPriceX64ToPrice(sqrtPriceX64, decimalsA, decimalsB);
-  }
-
-  static priceToTick(price: Decimal, decimalsA: number, decimalsB: number): number {
-    const adjustedPrice = price.div(Math.pow(10, decimalsA - decimalsB));
-
-    const tick = adjustedPrice.log().div(new Decimal(1.0001).log()).floor();
-    return Math.max(MIN_TICK, Math.min(MAX_TICK, tick.toNumber()));
-  }
-
-  static priceToSqrtPriceX64(price: Decimal, decimalsA: number, decimalsB: number): BN {
-    const adjustedPrice = price.div(Math.pow(10, decimalsA - decimalsB));
-    const sqrtPrice = adjustedPrice.sqrt();
-    const sqrtPriceX64 = sqrtPrice.mul(new Decimal(2).pow(64));
-
-    return new BN(sqrtPriceX64.toFixed(0));
-  }
-
-  static toTickIndex(tick: number, tickSpacing: number) {
-    if (tick >= 0) {
-      return tick - (tick % tickSpacing);
-    }
-    return tick - (tick % tickSpacing) - (tick % tickSpacing !== 0 ? tickSpacing : 0);
-  }
-
-  static getPriceAndTick({
-    price,
-    mintADecimals,
-    mintBDecimals,
-    zeroForOne,
-    tickSpacing,
-  }: {
-    price: Decimal;
-    mintADecimals: number;
-    mintBDecimals: number;
-    zeroForOne: boolean;
-    tickSpacing: number;
-  }): { tick: number; price: Decimal } {
-    let p = price.clamp(1 / 10 ** Math.max(mintADecimals, mintBDecimals), Number.MAX_SAFE_INTEGER);
-    if (!zeroForOne) p = new Decimal(1).div(p);
-    const newTick = TickUtil.toTickIndex(TickUtil.priceToTick(p, mintADecimals, mintBDecimals), tickSpacing);
-    const newPrice = TickUtil.tickToPrice(newTick, mintADecimals, mintBDecimals);
-    return {
-      price: zeroForOne ? newPrice : new Decimal(1).div(newPrice),
-      tick: newTick,
-    };
-  }
 }

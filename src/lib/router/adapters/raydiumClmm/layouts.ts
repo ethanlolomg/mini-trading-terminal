@@ -147,19 +147,11 @@ function decodeTick(r: Reader): TickDecoded {
   const liquidityGross = r.u128();
   r.skip(16 + 16); // feeGrowthOutsideX64A/B
   r.skip(16 * REWARD_NUM); // rewardGrowthsOutsideX64
-  const orderPhase = r.u64();
-  const ordersAmount = r.u64();
-  const partFilledOrdersRemaining = r.u64();
-  const unfilledRatioX64 = r.u128();
-  r.skip(4 * 3); // padding
+  r.skip(52); // padding[u32; 13] (the swap loop only needs liquidity net/gross)
   return {
     tick,
     liquidityNet,
     liquidityGross,
-    orderPhase,
-    ordersAmount,
-    partFilledOrdersRemaining,
-    unfilledRatioX64,
   };
 }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import BN from "bn.js";
-import { swapExactIn } from "./swap";
-import { TickUtil } from "./tickMath";
+import { swapExactIn, SwapMathUtil } from "./swap";
+import { TickUtil } from "./math";
 import type {
   ClmmConfigDecoded,
   PoolInfoDecoded,
@@ -10,6 +10,43 @@ import type {
   TickArrayDecoded,
   TickDecoded,
 } from "./types";
+
+const L = new BN(10).pow(new BN(15));
+const FEE = 2500; // 0.25% of 1e6 denominator
+
+describe("SwapMathUtil.computeSwap (oneForZero, base input)", () => {
+  const current = TickUtil.getSqrtPriceAtTick(0);
+  const target = TickUtil.getSqrtPriceAtTick(60); // price up => target > current
+
+  it("reaches target with a large input and produces output", () => {
+    const big = new BN(10).pow(new BN(18));
+    const res = SwapMathUtil.computeSwap(current, target, L, big, FEE, false, true);
+    expect(res.sqrtPriceNextX64.eq(target)).toBe(true);
+    expect(res.amountIn.gt(new BN(0))).toBe(true);
+    expect(res.amountOut.gt(new BN(0))).toBe(true);
+    expect(res.feeAmount.gte(new BN(0))).toBe(true);
+  });
+
+  it("stops short of target with a tiny input", () => {
+    const tiny = new BN(1000);
+    const res = SwapMathUtil.computeSwap(current, target, L, tiny, FEE, false, true);
+    expect(res.sqrtPriceNextX64.gt(current)).toBe(true);
+    expect(res.sqrtPriceNextX64.lt(target)).toBe(true);
+  });
+});
+
+describe("SwapMathUtil.computeSwap (zeroForOne, base input)", () => {
+  const current = TickUtil.getSqrtPriceAtTick(0);
+  const target = TickUtil.getSqrtPriceAtTick(-60); // price down => target < current
+
+  it("reaches target with a large input and produces output", () => {
+    const big = new BN(10).pow(new BN(18));
+    const res = SwapMathUtil.computeSwap(current, target, L, big, FEE, true, true);
+    expect(res.sqrtPriceNextX64.eq(target)).toBe(true);
+    expect(res.amountIn.gt(new BN(0))).toBe(true);
+    expect(res.amountOut.gt(new BN(0))).toBe(true);
+  });
+});
 
 const pk = (s: string): PublicKeyLike => ({
   toString: () => s,
@@ -26,10 +63,6 @@ function emptyTick(tick: number): TickDecoded {
     tick,
     liquidityNet: new BN(0),
     liquidityGross: new BN(0),
-    orderPhase: new BN(0),
-    ordersAmount: new BN(0),
-    partFilledOrdersRemaining: new BN(0),
-    unfilledRatioX64: new BN(0),
   };
 }
 
