@@ -96,7 +96,6 @@ export async function buildRaydiumClmmSwapTx(params: SwapParams): Promise<Versio
         microLamports: BigInt(Math.floor(priorityFeeMicroLamports)),
       }),
     );
-    console.log("priorityFeeMicroLamports", priorityFeeMicroLamports);
   }
 
   ixs.push(

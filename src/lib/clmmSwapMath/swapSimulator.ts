@@ -13,8 +13,8 @@
  * - PDA derivation for the extra tick arrays (upstream called
  *   `TickArrayBitmapUtil.findTickArrayAddress`, which needs `./pda`) is
  *   dependency-injected via the optional `getTickArrayAddress` callback so the
- *   math stays free of RPC/Raydium-glue deps. The Raydium glue (Phase 3/5)
- *   supplies it; unit tests pass `includeExtraTickArrays: false`.
+ *   math stays free of RPC/Raydium-glue deps. The Raydium adapter supplies it;
+ *   unit tests pass `includeExtraTickArrays: false`.
  */
 import BN from "bn.js";
 import { BN_ZERO, MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64 } from "./constants";

@@ -5,7 +5,7 @@
  * on-chain accounts. Upstream (Raydium SDK V2) uses `ReturnType<typeof
  * XxxLayout.decode>` from src/raydium/clmm/layout.ts; we express them as plain
  * interfaces so this math package has no dependency on the layout/marshmallow
- * code. The Phase 2 layout decoders must produce objects assignable to these.
+ * code. The adapter's layout decoders produce objects assignable to these.
  */
 import type BN from "bn.js";
 

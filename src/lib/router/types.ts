@@ -26,7 +26,7 @@ export interface SwapParams {
 
 /**
  * A swap venue. Each adapter builds a ready-to-sign VersionedTransaction for an
- * exact-in swap. (exact-out to be added later.)
+ * exact-in swap.
  */
 export interface SwapAdapter {
   readonly routeId: RouteId;

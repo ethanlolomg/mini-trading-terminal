@@ -1,11 +1,11 @@
 /**
- * clmmSwapMath — thin, in-house exact-in / exact-out wrappers.
+ * clmmSwapMath — thin, in-house exact-in wrapper.
  *
- * These are the public entry points of the math package. They wrap the core
+ * This is the public entry point of the math package. It wraps the core
  * `swapInternal` loop the same way Raydium SDK V2's
- * PoolUtils.getOutputAmountAndRemainAccounts / getInputAmountAndRemainAccounts
- * do, but WITHOUT dragging in `@/api`, `@/common`, `@/module`. Inputs are plain
- * decoded structs + BN; outputs are plain BN + address list.
+ * PoolUtils.getOutputAmountAndRemainAccounts does, but WITHOUT dragging in
+ * `@/api`, `@/common`, `@/module`. Inputs are plain decoded structs + BN;
+ * outputs are plain BN + address list.
  */
 import BN from "bn.js";
 import { BN_ZERO } from "./constants";

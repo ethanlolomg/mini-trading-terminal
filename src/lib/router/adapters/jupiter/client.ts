@@ -1,4 +1,4 @@
-import { PublicKey, VersionedTransaction } from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 import axios, { AxiosInstance } from "axios";
 import BN from "bn.js";
 
@@ -51,35 +51,6 @@ export interface GetOrderResponse {
   };
 }
 
-export interface SwapEvent {
-  inputMint: string;
-  inputAmount: string;
-  outputMint: string;
-  outputAmount: string;
-}
-
-export interface ExecuteOrderSuccessResponse {
-  status: "Success";
-  signature: string;
-  slot: string;
-  code: number;
-  inputAmountResult: string;
-  outputAmountResult: string;
-  swapEvents: SwapEvent[];
-}
-
-export interface ExecuteOrderErrorResponse {
-  status: "Failed";
-  signature: string;
-  error: string;
-  code: number;
-  slot: string;
-}
-
-export type ExecuteOrderResponse =
-  | ExecuteOrderSuccessResponse
-  | ExecuteOrderErrorResponse;
-
 export default class Jupiter {
   private static client: AxiosInstance = axios.create({
     baseURL: "https://lite-api.jup.ag/ultra/v1",
@@ -100,20 +71,6 @@ export default class Jupiter {
         referralAccount: import.meta.env.VITE_JUPITER_REFERRAL_ACCOUNT!,
         referralFee: 100,
       },
-    });
-    return data;
-  }
-
-  static async executeOrder(args: {
-    requestId: string;
-    signedTransaction: VersionedTransaction;
-  }) {
-    const { requestId, signedTransaction } = args;
-    const { data } = await this.client.post<ExecuteOrderResponse>("execute", {
-      requestId,
-      signedTransaction: Buffer.from(signedTransaction.serialize()).toString(
-        "base64",
-      ),
     });
     return data;
   }

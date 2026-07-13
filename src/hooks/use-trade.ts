@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
-import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { NATIVE_MINT } from "@solana/spl-token";
 import Decimal from "decimal.js";
 import { bn } from "@/lib/utils";
@@ -19,6 +19,7 @@ interface CreateTransactionParams {
   direction: "buy" | "sell";
   value: number;
   signer: PublicKey;
+  connection: Connection;
   slippageBps?: number;
   priorityFeeMicroLamports?: number;
 }
@@ -32,6 +33,13 @@ interface ExecuteTradeParams {
   onSuccess?: () => void;
 }
 
+/** True when every env var required to build and submit a trade is configured. */
+const envReady = Boolean(
+    import.meta.env.VITE_SOLANA_PRIVATE_KEY &&
+    import.meta.env.VITE_HELIUS_RPC_URL &&
+    import.meta.env.VITE_JUPITER_REFERRAL_ACCOUNT,
+);
+
 export const useTrade = (
   tokenAddress: string,
   tokenAtomicBalance: Decimal,
@@ -39,7 +47,7 @@ export const useTrade = (
 ) => {
   const createTransaction = useCallback(
     async (params: CreateTransactionParams) => {
-      const { direction, value, signer, slippageBps, priorityFeeMicroLamports } = params;
+      const { direction, value, signer, connection, slippageBps, priorityFeeMicroLamports } = params;
 
       let atomicAmount;
       if (direction === "buy") {
@@ -52,8 +60,6 @@ export const useTrade = (
         direction === "buy" ? NATIVE_MINT : new PublicKey(tokenAddress);
       const outputMint =
         direction === "buy" ? new PublicKey(tokenAddress) : NATIVE_MINT;
-
-      const connection = createConnection();
 
       // Dispatch to the resolved venue (Raydium CLMM or Jupiter) via the router.
       const transaction = await buildSwapTx(route.routeId, {
@@ -102,6 +108,7 @@ export const useTrade = (
           direction,
           value,
           signer: keypair.publicKey,
+          connection,
           slippageBps,
           priorityFeeMicroLamports,
         });
@@ -135,7 +142,7 @@ export const useTrade = (
   );
 
   return {
-    createTransaction,
     executeTrade,
+    envReady,
   };
 };

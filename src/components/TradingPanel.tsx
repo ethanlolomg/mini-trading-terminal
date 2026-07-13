@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { EnhancedToken, PairFilterResult } from "@codex-data/sdk/dist/sdk/generated/graphql";
 import { useBalance } from "@/hooks/use-balance";
 import { useTrade } from "@/hooks/use-trade";
-import { resolveRoute, type PoolCandidate } from "@/lib/router";
+import { useResolvedRoute } from "@/hooks/useResolvedRoute";
 import { createKeypair } from "@/lib/solana";
 
 interface TradingPanelProps {
@@ -20,22 +20,17 @@ export function TradingPanel({ token, pairs = [] }: TradingPanelProps) {
   const [buyAmount, setBuyAmount] = useState("");
   const [sellPercentage, setSellPercentage] = useState("");
 
-  const route = useMemo(() => {
-    const candidates: PoolCandidate[] = pairs.map((p) => ({
-      exchangeName: p.exchange?.name,
-      exchangeAddress: p.exchange?.address,
-      poolAddress: p.pair?.address,
-      token0: p.pair?.token0,
-      token1: p.pair?.token1,
-      tickSpacing: p.pair?.tickSpacing,
-    }));
-    return resolveRoute(candidates, token.address);
-  }, [pairs, token.address]);
+  const route = useResolvedRoute(token.address, pairs);
 
   const { nativeBalance: solanaBalance, tokenBalance, tokenAtomicBalance, loading, refreshBalance } = useBalance(token.address, Number(token.decimals), 9, Number(token.networkId));
-  const { executeTrade } = useTrade(token.address, tokenAtomicBalance, route);
+  const { executeTrade, envReady } = useTrade(token.address, tokenAtomicBalance, route);
 
-  const keypair = createKeypair(import.meta.env.VITE_SOLANA_PRIVATE_KEY);
+  // Decode the signer once for the wallet-address display, so we don't re-run
+  // the bs58 decode every render. Empty string until the env is configured.
+  const walletAddress = useMemo(
+    () => (envReady ? createKeypair(import.meta.env.VITE_SOLANA_PRIVATE_KEY).publicKey.toBase58() : ""),
+    [envReady],
+  );
 
   const handleTrade = useCallback(async () => {
     await executeTrade({
@@ -47,10 +42,7 @@ export function TradingPanel({ token, pairs = [] }: TradingPanelProps) {
     });
   }, [tradeMode, buyAmount, sellPercentage, executeTrade, refreshBalance]);
 
-  const solBuyAmountPresets = [0.0001, 0.001, 0.01, 0.1];
-  const percentagePresets = [25, 50, 75, 100];
-
-  if (!import.meta.env.VITE_SOLANA_PRIVATE_KEY || !import.meta.env.VITE_HELIUS_RPC_URL || !import.meta.env.VITE_JUPITER_REFERRAL_ACCOUNT) {
+  if (!envReady) {
     return (
       <Card>
         <CardHeader>
@@ -65,6 +57,9 @@ export function TradingPanel({ token, pairs = [] }: TradingPanelProps) {
     );
   }
 
+  const solBuyAmountPresets = [0.0001, 0.001, 0.01, 0.1];
+  const percentagePresets = [25, 50, 75, 100];
+
   return (
     <Card>
       <CardHeader>
@@ -72,12 +67,12 @@ export function TradingPanel({ token, pairs = [] }: TradingPanelProps) {
           <CardTitle>Trade {tokenSymbol || "Token"}</CardTitle>
           <button
             onClick={() => {
-              navigator.clipboard.writeText(keypair.publicKey.toBase58());
+              navigator.clipboard.writeText(walletAddress);
               toast.success("Wallet address copied!");
             }}
             className="text-xs text-muted-foreground font-mono hover:text-foreground transition-colors cursor-pointer"
           >
-            {keypair.publicKey.toBase58().slice(0, 4)}...{keypair.publicKey.toBase58().slice(-4)}
+            {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
           </button>
         </div>
       </CardHeader>

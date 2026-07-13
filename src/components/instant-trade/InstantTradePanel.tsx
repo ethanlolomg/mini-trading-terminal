@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Wallet, Zap, Settings2 } from "lucide-react";
 import { EnhancedToken, PairFilterResult } from "@codex-data/sdk/dist/sdk/generated/graphql";
@@ -7,7 +7,7 @@ import { useBalance } from "@/hooks/use-balance";
 import { useTrade } from "@/hooks/use-trade";
 import { useDraggable } from "@/hooks/useDraggable";
 import { useResizable } from "@/hooks/useResizable";
-import { resolveRoute, type PoolCandidate } from "@/lib/router";
+import { useResolvedRoute } from "@/hooks/useResolvedRoute";
 import { useInstantTradeStore, type ProfileId } from "@/stores/instantTradeStore";
 import { ProfileSettings } from "./ProfileSettings";
 
@@ -17,12 +17,6 @@ interface InstantTradePanelProps {
 }
 
 const PROFILE_IDS: ProfileId[] = ["P1", "P2", "P3"];
-
-const envReady = Boolean(
-  import.meta.env.VITE_SOLANA_PRIVATE_KEY &&
-    import.meta.env.VITE_HELIUS_RPC_URL &&
-    import.meta.env.VITE_JUPITER_REFERRAL_ACCOUNT,
-);
 
 /**
  * Floating, draggable, resizable one-click trade panel. Geometry, active
@@ -47,17 +41,7 @@ export function InstantTradePanel({ token, pairs = [] }: InstantTradePanelProps)
   useDraggable({ elementRef: panelRef, handleRef: headerRef, position, onCommit: setPosition, enabled: isOpen });
   useResizable({ elementRef: panelRef, handleRef: resizeRef, size, onCommit: setSize, enabled: isOpen });
 
-  const route = useMemo(() => {
-    const candidates: PoolCandidate[] = pairs.map((p) => ({
-      exchangeName: p.exchange?.name,
-      exchangeAddress: p.exchange?.address,
-      poolAddress: p.pair?.address,
-      token0: p.pair?.token0,
-      token1: p.pair?.token1,
-      tickSpacing: p.pair?.tickSpacing,
-    }));
-    return resolveRoute(candidates, token.address);
-  }, [pairs, token.address]);
+  const route = useResolvedRoute(token.address, pairs);
 
   const { nativeBalance, tokenBalance, tokenAtomicBalance, refreshBalance } = useBalance(
     token.address,
@@ -65,7 +49,7 @@ export function InstantTradePanel({ token, pairs = [] }: InstantTradePanelProps)
     9,
     Number(token.networkId),
   );
-  const { executeTrade } = useTrade(token.address, tokenAtomicBalance, route);
+  const { executeTrade, envReady } = useTrade(token.address, tokenAtomicBalance, route);
 
   const [isTrading, setIsTrading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -86,7 +70,7 @@ export function InstantTradePanel({ token, pairs = [] }: InstantTradePanelProps)
         setIsTrading(false);
       }
     },
-    [isTrading, executeTrade, profile.slippageBps, profile.priorityFee, refreshBalance],
+    [isTrading, envReady, executeTrade, profile.slippageBps, profile.priorityFee, refreshBalance],
   );
 
   if (!isOpen) return null;

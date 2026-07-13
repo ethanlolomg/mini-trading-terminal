@@ -1,12 +1,12 @@
 /**
  * Raydium CLMM swap math — constants.
  *
- * Copied verbatim from Raydium SDK V2
- * (src/raydium/clmm/libraries/constants.ts), Apache-2.0.
- * https://github.com/raydium-io/raydium-sdk-V2
+ * Adapted from Raydium SDK V2 (src/raydium/clmm/libraries/constants.ts),
+ * Apache-2.0. https://github.com/raydium-io/raydium-sdk-V2
  *
- * Only edit vs upstream: FEE_RATE_DENOMINATOR_VALUE is defined here (upstream
- * exposes it from `@/common`) so this math package stays free of app deps.
+ * Trimmed to the constants the in-house swap path actually uses.
+ * `FEE_RATE_DENOMINATOR_VALUE` is defined here (upstream exposes it from
+ * `@/common`) so this math package stays free of app deps.
  */
 import BN from "bn.js";
 
@@ -14,11 +14,7 @@ export const Q64 = new BN(1).shln(64);
 
 export const RESOLUTION = 64;
 
-export const Q128 = new BN(1).shln(128);
-
 export const U64_MAX = new BN(1).shln(64).subn(1);
-
-export const U128_MAX = new BN(1).shln(128).subn(1);
 
 export const MIN_TICK = -443636;
 
@@ -39,8 +35,6 @@ export const BIT_PRECISION = 16;
 export const TICK_ARRAY_BITMAP_SIZE = 512;
 
 export const TICK_ARRAY_SIZE = 60;
-
-export const MAGIC_SQRT_10001 = new BN("18446743708227953217");
 
 export const TICK_TO_SQRT_PRICE_FACTORS: { bit: number; factor: BN }[] = [
   { bit: 0, factor: new BN("fffcb933bd6fb800", 16) }, // i=0
@@ -66,8 +60,6 @@ export const TICK_TO_SQRT_PRICE_FACTORS: { bit: number; factor: BN }[] = [
 
 export const FEE_RATE_DENOMINATOR = 1_000_000;
 
-export const MAX_FEE_RATE = 100_000;
-
 // Upstream exports this from `@/common`; kept local to avoid app-layer deps.
 export const FEE_RATE_DENOMINATOR_VALUE = new BN(1_000_000);
 
@@ -77,44 +69,9 @@ export enum CollectFeeOn {
   TokenOnlyB = 2,
 }
 
-export const MAX_TICK_SPACING = 1000;
-
-export const TICK_ARRAY_SIZE_USIZE = 60;
-
 export const REWARD_NUM = 3;
-
-export const OBSERVATION_NUM = 100;
-export const OBSERVATION_UPDATE_DURATION_DEFAULT = 15;
-
-export const OPERATION_SIZE_USIZE = 10;
-export const WHITE_MINT_SIZE_USIZE = 100;
 
 export const EXTENSION_TICKARRAY_BITMAP_SIZE = 14;
 
-export enum PoolStatusBitIndex {
-  OpenPositionOrIncreaseLiquidity = 0,
-  DecreaseLiquidity = 1,
-  CollectFee = 2,
-  CollectReward = 3,
-  Swap = 4,
-  LimitOrder = 5,
-}
-
-export enum PoolStatusBitFlag {
-  Enable = 0,
-  Disable = 1,
-}
-
-export enum RewardState {
-  Uninitialized = 0,
-  Initialized = 1,
-  Opening = 2,
-  Ended = 3,
-}
-
 export const BN_ZERO = new BN(0);
 export const BN_ONE = new BN(1);
-export const BN_NEGATIVE_ONE = new BN(-1);
-
-export const DYNAMIC_CONFIG_INDEX = 2;
-export const U64_IGNORE_RANGE = new BN("18446744073700000000");

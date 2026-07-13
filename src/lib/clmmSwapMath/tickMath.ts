@@ -7,8 +7,9 @@
  * Only the PURE tick math is kept (bitmap scanning, tick<->sqrtPrice, limit
  * order matching). The RPC fetch helper (`fetchTickArrays`) and PDA-address
  * derivation (`findTickArrayAddress`) are intentionally omitted — those belong
- * to the Raydium glue layer (Phase 3, src/lib/raydium/). `findTickArrayStartIndex`
- * returns plain start indices so the glue can map them to PDAs.
+ * to the Raydium adapter (src/lib/router/adapters/raydiumClmm/).
+ * `findTickArrayStartIndex` returns plain start indices so the adapter can map
+ * them to PDAs.
  *
  * Edits vs upstream: `@/common` (FEE_RATE_DENOMINATOR_VALUE) repointed to
  * ./constants; layout `ReturnType<...>` types repointed to ./types; bigNum ->
