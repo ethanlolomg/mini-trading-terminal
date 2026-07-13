@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { TokenChart, ChartDataPoint } from "@/components/TokenChart";
 import { TradingPanel } from "@/components/TradingPanel";
 import { InstantTradeToggle, InstantTradePanel } from "@/components/instant-trade";
-import { useIsDesktop } from "@/hooks/useMediaQuery";
+import { useIsDesktop } from "@/hooks/use-media-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EnhancedToken, PairFilterResult, PairRankingAttribute, RankingDirection } from "@codex-data/sdk/dist/sdk/generated/graphql";

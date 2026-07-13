@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { EnhancedToken, PairFilterResult } from "@codex-data/sdk/dist/sdk/generated/graphql";
 import { useBalance } from "@/hooks/use-balance";
 import { useTrade } from "@/hooks/use-trade";
-import { useResolvedRoute } from "@/hooks/useResolvedRoute";
+import { useResolvedRoute } from "@/hooks/use-resolved-route";
 import { createKeypair } from "@/lib/solana";
 
 interface TradingPanelProps {

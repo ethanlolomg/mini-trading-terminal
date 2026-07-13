@@ -5,9 +5,9 @@ import { EnhancedToken, PairFilterResult } from "@codex-data/sdk/dist/sdk/genera
 import { cn } from "@/lib/utils";
 import { useBalance } from "@/hooks/use-balance";
 import { useTrade } from "@/hooks/use-trade";
-import { useDraggable } from "@/hooks/useDraggable";
-import { useResizable } from "@/hooks/useResizable";
-import { useResolvedRoute } from "@/hooks/useResolvedRoute";
+import { useDraggable } from "@/hooks/use-draggable";
+import { useResizable } from "@/hooks/use-resizable";
+import { useResolvedRoute } from "@/hooks/use-resolved-route";
 import { useInstantTradeStore, type ProfileId } from "@/stores/instantTradeStore";
 import { ProfileSettings } from "./ProfileSettings";
 
